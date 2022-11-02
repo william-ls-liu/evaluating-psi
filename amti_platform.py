@@ -1,9 +1,8 @@
 # Author: William Liu <liwi@ohsu.edu>
 
 import nidaqmx
-from nidaqmx.constants import Edge, AcquisitionType, TerminalConfiguration
+from nidaqmx.constants import AcquisitionType, TerminalConfiguration
 from datetime import datetime
-import numpy as np
 
 # Start the task
 task = nidaqmx.Task()
