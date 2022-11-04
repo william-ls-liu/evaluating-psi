@@ -25,6 +25,9 @@ class DAQ:
         # I belive assigning a name to the task will cause an error when trying
         # to create multiple tasks, so I'm assigning it a name to prevent unintended
         # creation of tasks.
+        if self.is_task:
+            raise ValueError("Task is already running.")
+
         self.task = nidaqmx.Task(new_task_name="Active Task")
         self.is_task = True
 
@@ -55,7 +58,7 @@ class DAQ:
                 self.is_running = True
         else:
             raise KeyError("No task has been defined. Use create_task to initiate one.")
-            
+
     def stop(self):
         """Stop the active task, if there is one already defined."""
         if self.is_task:
@@ -63,9 +66,9 @@ class DAQ:
                 self.task.stop()
                 self.is_running = False
             else:
-                print("Task is already stopped.")
+                raise KeyError("Task is already stopped.")
         else:
-            print("No task has been defined. Use create_task to initiate a task.")
+            raise KeyError("No task has been defined. Use create_task to initiate a task.")
 
     def close(self):
         """Clear the active task, which is unrecoverable. Task will have to be recreated."""
@@ -74,6 +77,8 @@ class DAQ:
                 self.task.stop()
             self.task.close()
             self.is_task = False
+            self.is_running = False
+            del self.task
         
 
     def read(self):
