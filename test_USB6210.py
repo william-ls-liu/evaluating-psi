@@ -10,9 +10,18 @@ class TestTask(unittest.TestCase):
         self.channels = channels = "ai0:7"
 
     def test_create_task_success(self):
+        # Test creating a task
         self.device.create_task(self.channels)
-        self.assertEqual(self.device.is_task, True)
+        self.assertTrue(self.device.task.is_task_done())
+        self.assertTrue(self.device.is_task)
         self.assertEqual(self.device.task.channel_names, [f"{self.dev_name}/ai{i}" for i in range(8)])
+        self.device.close()
+
+    def test_create_task_fail(self):
+        # Test creating a task when one already exists
+        self.device.create_task(self.channels)
+        with self.assertRaises(ValueError):
+            self.device.create_task(self.channels)
         self.device.close()
 
     def test_task_start(self):
@@ -23,9 +32,9 @@ class TestTask(unittest.TestCase):
         # Test creating a task and starting it
         self.device.create_task(self.channels)
         self.device.start()
-        self.assertEqual(self.device.task.is_task_done(), False)
-        self.assertEqual(self.device.is_task, True)
-        self.assertEqual(self.device.is_running, True)
+        self.assertFalse(self.device.task.is_task_done())
+        self.assertTrue(self.device.is_task)
+        self.assertTrue(self.device.is_running)
 
         # Test starting the task when it is already running
         with self.assertRaises(KeyError):
@@ -33,15 +42,41 @@ class TestTask(unittest.TestCase):
         
         # Test starting a task after stopping it
         self.device.stop()
-        self.assertEqual(self.device.task.is_task_done(), True)
-        self.assertEqual(self.device.is_running, False)
+        self.assertTrue(self.device.task.is_task_done())
+        self.assertFalse(self.device.is_running)
 
         # Test starting a task after closing it
         self.device.start()
-        self.assertEqual(self.device.task.is_task_done(), False)
+        self.assertFalse(self.device.task.is_task_done())
         self.device.close()
         with self.assertRaises(KeyError):
             self.device.start()
+        
+        # CLose device just to be safe, so it doesn't interfere with other tests
+        self.device.close()
+
+    def test_task_stop(self):
+        # Test stopping a task without one being created
+        with self.assertRaises(KeyError):
+            self.device.stop()
+        
+        # Test stopping task after one has been created, but not started
+        self.device.create_task(self.channels)
+        with self.assertRaises(KeyError):
+            self.device.stop()
+        
+        # Test stopping a task successfully
+        self.device.start()
+        self.assertTrue(self.device.is_task)
+        self.assertTrue(self.device.is_running)
+        self.assertFalse(self.device.task.is_task_done())
+        self.device.stop()
+        self.assertFalse(self.device.is_running)
+        self.assertTrue(self.device.is_task)
+        self.assertTrue(self.device.task.is_task_done())
+
+        self.device.close()
+
 
 
 if __name__ == '__main__':
