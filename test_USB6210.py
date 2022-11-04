@@ -77,6 +77,24 @@ class TestTask(unittest.TestCase):
 
         self.device.close()
 
+    def test_read(self):
+        # Test the read functionality
+        self.device.create_task(self.channels)
+        self.device.start()
+        buffer = self.device.read()
+        self.assertEqual(len(buffer), 8)
+        self.device.close()
+
+        # Test reading when a task hasnt been created
+        with self.assertRaises(KeyError):
+            self.device.read()
+
+        # Test reading when a task has been created, but not started
+        self.device.create_task(self.channels)
+        with self.assertRaises(KeyError):
+            self.device.read()
+        self.device.close()
+
 
 
 if __name__ == '__main__':
