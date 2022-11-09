@@ -7,7 +7,16 @@ from nidaqmx.constants import AcquisitionType, TerminalConfiguration
 import numpy as np
 
 class DAQ:
-    """This object represents a National Instruments DAQ Device."""
+    """
+    This object represents a National Instruments DAQ Device.
+    
+    The class constant ANALOG_SENS allows for the conversion from the analog output
+    of the Gen5 to Newtons. The values are in units V/N. These values are dependent
+    on the excitation voltage and gain, so when these parameters are changed the
+    ANALOG_SENS values must be updated.
+    """
+
+    ANALOG_SENS = (6.4717e-3, 6.4442e-3, 1.6602e-3, 16.0339e-3, 16.1206e-3, 33.0285e-3)
 
     def __init__(self, dev_name: str) -> None:
         """Initiate the device, perform basic self test."""
@@ -19,7 +28,7 @@ class DAQ:
 
         # Initiate variables to store state
         self.is_running = False
-        self.is_task = False
+        self.is_task = False        
 
     def create_task(self, channels_str: str):
         # I belive assigning a name to the task will cause an error when trying
@@ -82,11 +91,10 @@ class DAQ:
         
 
     def read(self):
-        """Read the data present in the buffer of the DAQ."""
+        """Read the data present in the buffer of the DAQ and convert the voltage value to Newtons."""
         if not self.is_task:
             raise KeyError("No active task. Use create_task() to create one.")
         if not self.is_running:
             raise KeyError("Task has not been started, use start() to begin the task.")
             
-        buffer = self.task.read()
-        return buffer
+        return np.array(self.task.read()) / self.ANALOG_SENS
