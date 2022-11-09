@@ -7,14 +7,14 @@ class TestTask(unittest.TestCase):
     def setUp(self) -> None:
         self.dev_name = 'Dev1'
         self.device = DAQ(self.dev_name)
-        self.channels = channels = "ai0:7"
+        self.channels = channels = "ai1:6"
 
     def test_create_task_success(self):
         # Test creating a task
         self.device.create_task(self.channels)
         self.assertTrue(self.device.task.is_task_done())
         self.assertTrue(self.device.is_task)
-        self.assertEqual(self.device.task.channel_names, [f"{self.dev_name}/ai{i}" for i in range(8)])
+        self.assertEqual(self.device.task.channel_names, [f"{self.dev_name}/ai{i}" for i in range(1, 7)])
         self.device.close()
 
     def test_create_task_fail(self):
@@ -82,7 +82,7 @@ class TestTask(unittest.TestCase):
         self.device.create_task(self.channels)
         self.device.start()
         buffer = self.device.read()
-        self.assertEqual(len(buffer), 8)
+        self.assertEqual(len(buffer), 6)
         self.device.close()
 
         # Test reading when a task hasnt been created
