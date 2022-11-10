@@ -1,15 +1,14 @@
 # Author: William Liu <liwi@ohsu.edu>
 
-import PySide2
-from PySide2 import QtCore
-from PySide2 import QtWidgets
+from PySide6 import QtCore
+from PySide6 import QtWidgets
 import pyqtgraph as pg
 from USB6210 import DAQ
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__(parent=None)
-        self.setMinimumSize(QtCore.QSize(400, 300))
+        self.setMinimumSize(QtCore.QSize(900, 900))
         self.setWindowTitle("Balance Lab")
         self.central_widget = QtWidgets.QWidget(parent=self)
         layout = QtWidgets.QVBoxLayout()
@@ -66,7 +65,7 @@ class Plot(QtWidgets.QWidget):
         self.task_exists = False
         
         # Set the layout
-        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout = QtWidgets.QVBoxLayout(parent=self)
         self.layout.addWidget(self.plot_widget)
         self.layout.addWidget(self.start_daq_button)
         self.layout.addWidget(self.start_rec_button)
