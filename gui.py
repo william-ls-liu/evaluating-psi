@@ -35,7 +35,7 @@ class Plot(QWidget):
 
         # Define the timer parameters
         self.timer = QtCore.QTimer()
-        self.timer.setInterval(10)
+        self.timer.setInterval(1)
         self.timer.timeout.connect(self.update_plot)
 
         # Define buttons
@@ -47,15 +47,16 @@ class Plot(QWidget):
         self.stop_rec_button.clicked.connect(self.stop_recording)
 
         # Define variables for plotting
+        samples_to_show = 250
         self.channel_data = {
-            'Fx': [0 for i in range(1000)],
-            'Fy': [0 for i in range(1000)],
-            'Fz': [0 for i in range(1000)],
-            'Mx': [0 for i in range(1000)],
-            'My': [0 for i in range(1000)],
-            'Mz': [0 for i in range(1000)]
+            'Fx': [0 for i in range(samples_to_show)],
+            'Fy': [0 for i in range(samples_to_show)],
+            'Fz': [0 for i in range(samples_to_show)],
+            'Mx': [0 for i in range(samples_to_show)],
+            'My': [0 for i in range(samples_to_show)],
+            'Mz': [0 for i in range(samples_to_show)]
         }
-        self.time = [i for i in range(1000)]
+        self.time = [i for i in range(samples_to_show)]
         self.subplots = dict()
 
         # Build the subplots
@@ -75,7 +76,7 @@ class Plot(QWidget):
     def build_subplots(self):
         pg_layout = pg.GraphicsLayoutWidget()
         for idx, ch in enumerate(self.channel_data.keys()):
-            plot_item = pg_layout.addPlot(row=idx, col=0, title=ch)
+            plot_item = pg_layout.addPlot(row=idx - idx%2, col=idx%2, title=ch)
             plot_line = plot_item.plot(x=self.time, y=self.channel_data[ch])
             self.subplots[ch] = plot_line
 
