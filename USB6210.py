@@ -1,34 +1,40 @@
 # Author: William Liu <liwi@ohsu.edu>
 
 import nidaqmx
-from nidaqmx.errors import DaqError
 import nidaqmx.system
 from nidaqmx.constants import AcquisitionType, TerminalConfiguration
 import numpy as np
+import json
 
 class DAQ:
     """
     This object represents a National Instruments DAQ Device.
-    
-    The class constant ANALOG_SENS allows for the conversion from the analog output
-    of the Gen5 to Newtons. The values are in units V/N. These values are dependent
-    on the excitation voltage and gain, so when these parameters are changed the
-    ANALOG_SENS values must be updated.
     """
-
-    ANALOG_SENS = (6.4717e-3, 6.4442e-3, 1.6602e-3, 16.0339e-3, 16.1206e-3, 33.0285e-3)
 
     def __init__(self, dev_name: str) -> None:
         """Initiate the device, perform basic self test."""
         self.dev_name = dev_name
         self.dev = nidaqmx.system.Device(self.dev_name)
 
+        # Read the analog sensitivities
+        self._analog_sensitivities = self._read_settings()
+
         # Perform the self test
         self.dev.self_test_device()
 
         # Initiate variables to store state
         self.is_running = False
-        self.is_task = False        
+        self.is_task = False   
+
+    def _read_settings(self):
+        """Read the settings file to get the analog sensitivities."""
+        with open("amti_settings.json", 'r') as file:
+            settings = json.load(file)
+        
+        analog_sensitivities = np.array(settings['analog_sensitivities'], dtype=np.float64)
+        analog_sensitivities = analog_sensitivities * 1e-3  # Convert units from mV/N to V/N
+
+        return analog_sensitivities
 
     def create_task(self, channels_str: str):
         # I belive assigning a name to the task will cause an error when trying
@@ -96,4 +102,4 @@ class DAQ:
         if not self.is_running:
             raise KeyError("Task has not been started, use start() to begin the task.")
             
-        return np.array(self.task.read()) / self.ANALOG_SENS
+        return np.array(self.task.read()) / self._analog_sensitivities
