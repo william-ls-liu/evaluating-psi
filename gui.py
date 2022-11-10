@@ -1,18 +1,18 @@
+# Author: William Liu <liwi@ohsu.edu>
+
 import PySide2
 from PySide2 import QtCore
-from PySide2.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QVBoxLayout
-from PySide2.QtGui import *
+from PySide2 import QtWidgets
 import pyqtgraph as pg
 from USB6210 import DAQ
-from datetime import datetime
 
-class MainWindow(QMainWindow):
+class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__(parent=None)
         self.setMinimumSize(QtCore.QSize(400, 300))
         self.setWindowTitle("Balance Lab")
-        self.central_widget = QWidget(parent=self)
-        layout = QVBoxLayout()
+        self.central_widget = QtWidgets.QWidget(parent=self)
+        layout = QtWidgets.QVBoxLayout()
 
         self.graph = Plot(self)
         layout.addWidget(self.graph)
@@ -29,7 +29,7 @@ class MainWindow(QMainWindow):
         else:
             event.accept()
 
-class Plot(QWidget):
+class Plot(QtWidgets.QWidget):
     def __init__(self, parent) -> None:
         super().__init__(parent=parent)
 
@@ -39,11 +39,11 @@ class Plot(QWidget):
         self.timer.timeout.connect(self.update_plot)
 
         # Define buttons
-        self.start_daq_button = QPushButton("Start", parent=self)
+        self.start_daq_button = QtWidgets.QPushButton("Start", parent=self)
         self.start_daq_button.clicked.connect(self.start_daq)
-        self.start_rec_button = QPushButton("Record", parent=self)
+        self.start_rec_button = QtWidgets.QPushButton("Record", parent=self)
         self.start_rec_button.clicked.connect(self.start_recording)
-        self.stop_rec_button = QPushButton("Stop", parent=self)
+        self.stop_rec_button = QtWidgets.QPushButton("Stop", parent=self)
         self.stop_rec_button.clicked.connect(self.stop_recording)
 
         # Define variables for plotting
@@ -66,7 +66,7 @@ class Plot(QWidget):
         self.task_exists = False
         
         # Set the layout
-        self.layout = QVBoxLayout(self)
+        self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addWidget(self.plot_widget)
         self.layout.addWidget(self.start_daq_button)
         self.layout.addWidget(self.start_rec_button)
@@ -109,7 +109,7 @@ class Plot(QWidget):
             self.subplots[ch].setData(x=self.time, y=self.channel_data[ch])
 
 
-app = QApplication()
+app = QtWidgets.QApplication()
 window = MainWindow()
 window.show()
 app.exec_()
