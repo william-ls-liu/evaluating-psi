@@ -89,7 +89,6 @@ class DAQ:
             self.is_running = False
             del self.task
         
-
     def read(self):
         """Read the data present in the buffer of the DAQ and convert the voltage value to Newtons."""
         if not self.is_task:
