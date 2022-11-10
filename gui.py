@@ -38,12 +38,16 @@ class Plot(QtWidgets.QWidget):
         self.timer.timeout.connect(self.update_plot)
 
         # Define buttons
-        self.start_daq_button = QtWidgets.QPushButton("Start", parent=self)
-        self.start_daq_button.clicked.connect(self.start_daq)
-        self.start_rec_button = QtWidgets.QPushButton("Record", parent=self)
-        self.start_rec_button.clicked.connect(self.start_recording)
-        self.stop_rec_button = QtWidgets.QPushButton("Stop", parent=self)
-        self.stop_rec_button.clicked.connect(self.stop_recording)
+        self.start_daq_btn = QtWidgets.QPushButton("Start DAQ", parent=self)
+        self.start_daq_btn.clicked.connect(self.start_daq)
+        
+        self.start_stream_btn = QtWidgets.QPushButton("Stream Data", parent=self)
+        self.start_stream_btn.clicked.connect(self.start_streaming)
+        self.start_stream_btn.setEnabled(False)
+
+        self.stop_stream_btn = QtWidgets.QPushButton("Stop Streaming", parent=self)
+        self.stop_stream_btn.clicked.connect(self.stop_streaming)
+        self.stop_stream_btn.setEnabled(False)
 
         # Define variables for plotting
         samples_to_show = 250
@@ -65,11 +69,11 @@ class Plot(QtWidgets.QWidget):
         self.task_exists = False
         
         # Set the layout
-        self.layout = QtWidgets.QVBoxLayout(parent=self)
+        self.layout = QtWidgets.QVBoxLayout()
         self.layout.addWidget(self.plot_widget)
-        self.layout.addWidget(self.start_daq_button)
-        self.layout.addWidget(self.start_rec_button)
-        self.layout.addWidget(self.stop_rec_button)
+        self.layout.addWidget(self.start_daq_btn)
+        self.layout.addWidget(self.start_stream_btn)
+        self.layout.addWidget(self.stop_stream_btn)
         self.setLayout(self.layout)
 
     def build_subplots(self):
@@ -87,14 +91,25 @@ class Plot(QtWidgets.QWidget):
         self.dev.start()
         self.task_exists = True
 
-    def start_recording(self):
-        self.timer.start()
+        # Enable/disable relevant buttons
+        self.start_daq_btn.setEnabled(False)
+        self.start_stream_btn.setEnabled(True)
+        self.stop_stream_btn.setEnabled(True)
 
-    def stop_recording(self):
+    def start_streaming(self):
+        self.timer.start()
+        self.start_stream_btn.setEnabled(False)
+
+    def stop_streaming(self):
         self.timer.stop()
         self.dev.stop()
         self.dev.close()
         self.task_exists = False
+
+        # Enable/disable relevant buttons
+        self.start_daq_btn.setEnabled(True)
+        self.start_stream_btn.setEnabled(False)
+        self.stop_stream_btn.setEnabled(False)
 
     def update_plot(self):
         # Read the voltage from the DAQ
