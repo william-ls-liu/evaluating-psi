@@ -12,15 +12,22 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(QtCore.QSize(400, 300))
         self.setWindowTitle("Balance Lab")
         self.central_widget = QWidget(parent=self)
-        self.button = QPushButton("Press me!")
         layout = QVBoxLayout()
-        layout.addWidget(self.button)
 
         self.graph = Plot(self)
         layout.addWidget(self.graph)
 
         self.central_widget.setLayout(layout)
         self.setCentralWidget(self.central_widget)
+    
+    def closeEvent(self, event):
+        """Override closeEvent method to ensure the active task on the DAQ, if there was one, was closed
+        safely."""
+        if self.graph.task_exists:
+            self.graph.dev.close()
+            event.accept()
+        else:
+            event.accept()
 
 class Plot(QWidget):
     def __init__(self, parent) -> None:
@@ -40,23 +47,45 @@ class Plot(QWidget):
         self.stop_rec_button.clicked.connect(self.stop_recording)
 
         # Define variables for plotting
-        self.x = [i for i in range(1000)]
-        self.y = [0 for i in range(1000)]
-        self.pw = pg.PlotWidget(parent=self)
-        self.data_line = self.pw.plot(self.x, self.y)
+        self.channel_data = {
+            'Fx': [0 for i in range(1000)],
+            'Fy': [0 for i in range(1000)],
+            'Fz': [0 for i in range(1000)],
+            'Mx': [0 for i in range(1000)],
+            'My': [0 for i in range(1000)],
+            'Mz': [0 for i in range(1000)]
+        }
+        self.time = [i for i in range(1000)]
+        self.subplots = dict()
 
+        # Build the subplots
+        self.plot_widget = self.build_subplots()
+
+        # Initiate variable to store the state of the task
+        self.task_exists = False
+        
         # Set the layout
         self.layout = QVBoxLayout(self)
-        self.layout.addWidget(self.pw)
+        self.layout.addWidget(self.plot_widget)
         self.layout.addWidget(self.start_daq_button)
         self.layout.addWidget(self.start_rec_button)
         self.layout.addWidget(self.stop_rec_button)
         self.setLayout(self.layout)
 
+    def build_subplots(self):
+        pg_layout = pg.GraphicsLayoutWidget()
+        for idx, ch in enumerate(self.channel_data.keys()):
+            plot_item = pg_layout.addPlot(row=idx, col=0, title=ch)
+            plot_line = plot_item.plot(x=self.time, y=self.channel_data[ch])
+            self.subplots[ch] = plot_line
+
+        return pg_layout
+
     def start_daq(self):
         self.dev = DAQ('Dev1')
-        self.dev.create_task('ai0')
+        self.dev.create_task('ai1:6')
         self.dev.start()
+        self.task_exists = True
 
     def start_recording(self):
         self.timer.start()
@@ -65,13 +94,18 @@ class Plot(QWidget):
         self.timer.stop()
         self.dev.stop()
         self.dev.close()
+        self.task_exists = False
 
     def update_plot(self):
-        self.y = self.y[1:]
-        self.y.append(self.dev.read())
-        self.x = self.x[1:]
-        self.x.append(self.x[-1] + 1)
-        self.data_line.setData(self.x, self.y)
+        # Read the voltage from the DAQ
+        data = self.dev.read()
+        # Update the time array
+        self.time = self.time[1:]
+        self.time.append(self.time[-1] + 1)
+        for idx, ch in enumerate(self.subplots.keys()):
+            self.channel_data[ch] = self.channel_data[ch][1:]
+            self.channel_data[ch].append(data[idx])
+            self.subplots[ch].setData(x=self.time, y=self.channel_data[ch])
 
 
 app = QApplication()
