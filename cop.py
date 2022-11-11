@@ -67,25 +67,26 @@ class PlotWidget(QtWidgets.QWidget):
         """Create subplots for the EMG and CoP graphs."""
         pg_layout = pg.GraphicsLayoutWidget()
 
+        # Create the CoP plot
         cop_plotItem = pg_layout.addPlot(row=0, col=0, title="Center of Pressure")
         cop_plotItem.setRange(xRange=(-0.254, 0.254), yRange=(-0.254, 0.254))
         cop_plotItem.enableAutoRange(enable=False)  # Disable automatic adjustment of axes ranges
+        cop_plotItem.invertX(b=True)  # AMTI axis definitions mean the +X is actually on the left of the graph
         cop_plotLine = cop_plotItem.plot(x=self.copX, y=self.copY, pen=None, symbol='o')
         self.subplots['cop'] = cop_plotLine
 
-        emg_tib_plot = pg_layout.addPlot(
-            row=0, col=1, title="EMG: Tibial"
-            ).plot(
-                x=self.time, y=self.emg_tib
-                )
-        self.subplots['tib'] = emg_tib_plot
+        # Create plots for the two EMG channels
+        emg_tib_plotItem = pg_layout.addPlot(row=0, col=1, title="EMG: Tibial")
+        emg_tib_plotItem.setRange(yRange=(-2.5, 2.5))
+        emg_tib_plotItem.disableAutoRange(axis='y')  # Disable just the y axis, so data still scrolls
+        emg_tib_plotLine = emg_tib_plotItem.plot(x=self.time, y=self.emg_tib)
+        self.subplots['tib'] = emg_tib_plotLine
 
-        emg_soleus_plot = pg_layout.addPlot(
-            row=1, col=1, title="EMG: Soleus"
-            ).plot(
-                x=self.time, y=self.emg_soleus
-                )
-        self.subplots['soleus'] = emg_soleus_plot
+        emg_soleus_plotItem = pg_layout.addPlot(row=1, col=1, title="EMG: Soleus")
+        emg_soleus_plotItem.setRange(yRange=(-2.5, 2.5))
+        emg_soleus_plotItem.disableAutoRange(axis='y')
+        emg_soleus_plotLine = emg_soleus_plotItem.plot(x=self.time, y=self.emg_soleus)
+        self.subplots['soleus'] = emg_soleus_plotLine
 
         return pg_layout
 
