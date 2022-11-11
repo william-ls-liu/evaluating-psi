@@ -26,7 +26,7 @@ class PlotWidget(QtWidgets.QWidget):
         # Set-up QTimer to initiate reads from the DAQ
         self.timer = QtCore.QTimer(parent=self)
         self.timer.setInterval(1)
-        # self.timer.timeout.connect()
+        self.timer.timeout.connect(self.update_plot)
 
         # Define buttons
         self.start_daq_btn = QtWidgets.QPushButton("Start DAQ", parent=self)
@@ -64,24 +64,69 @@ class PlotWidget(QtWidgets.QWidget):
         self.setLayout(self.layout)
 
     def build_subplots(self):
+        """Create subplots for the EMG and CoP graphs."""
         pg_layout = pg.GraphicsLayoutWidget()
-        cop_plot = pg_layout.addPlot(row=0, col=0, title="Center of Pressure").plot(x=self.copX, y=self.copY, pen=None, symbol='o')
-        self.subplots['cop'] = cop_plot
-        emg_tib_plot = pg_layout.addPlot(row=0, col=1, title="EMG: Tibial").plot(x=self.time, y=self.emg_tib)
+
+        cop_plotItem = pg_layout.addPlot(row=0, col=0, title="Center of Pressure")
+        cop_plotItem.setRange(xRange=(-0.254, 0.254), yRange=(-0.254, 0.254))
+        cop_plotItem.enableAutoRange(enable=False)  # Disable automatic adjustment of axes ranges
+        cop_plotLine = cop_plotItem.plot(x=self.copX, y=self.copY, pen=None, symbol='o')
+        self.subplots['cop'] = cop_plotLine
+
+        emg_tib_plot = pg_layout.addPlot(
+            row=0, col=1, title="EMG: Tibial"
+            ).plot(
+                x=self.time, y=self.emg_tib
+                )
         self.subplots['tib'] = emg_tib_plot
-        emg_soleus_plot = pg_layout.addPlot(row=1, col=1, title="EMG: Soleus").plot(x=self.time, y=self.emg_soleus)
+
+        emg_soleus_plot = pg_layout.addPlot(
+            row=1, col=1, title="EMG: Soleus"
+            ).plot(
+                x=self.time, y=self.emg_soleus
+                )
         self.subplots['soleus'] = emg_soleus_plot
 
         return pg_layout
 
     def start_daq(self):
-        pass
+        self.dev = DAQ('Dev1')
+        self.dev.create_task('ai1:6')
+        self.dev.start()
+        self.task_exists = True
+
+        # Enable/disable relevant buttons
+        self.start_daq_btn.setEnabled(False)
+        self.start_stream_btn.setEnabled(True)
+        self.stop_stream_btn.setEnabled(True)
 
     def start_streaming(self):
-        pass
+        self.timer.start()
+        self.start_stream_btn.setEnabled(False)
 
     def stop(self):
-        pass
+        self.timer.stop()
+        self.dev.stop()
+        self.dev.close()
+        self.task_exists = False
+
+        # Enable/disable relevant buttons
+        self.start_daq_btn.setEnabled(True)
+        self.start_stream_btn.setEnabled(False)
+        self.stop_stream_btn.setEnabled(False)
+
+    def update_plot(self):
+        # Read the voltage from the DAQ
+        data = self.dev.read()
+
+        # Calculate the Center of Pressure
+        copX = -1 * ((data[4] + (-0.040934 * data[0])) / data[2])
+        self.copX.append(copX)
+        copY = (data[3] - (-0.040934 * data[1])) / data[2]
+        self.copY.append(copY)
+
+        # Update the plot
+        self.subplots['cop'].setData(x=[self.copX[-1]], y=[self.copY[-1]])
 
 
 app = QtWidgets.QApplication()
