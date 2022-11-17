@@ -13,11 +13,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.cw = QtWidgets.QWidget(parent=self)
         layout = QtWidgets.QVBoxLayout()
 
+        # Add the PlotWidget to layout
         self.pw = PlotWidget(self)
         layout.addWidget(self.pw)
 
         self.cw.setLayout(layout)
         self.setCentralWidget(self.cw)
+
+    def closeEvent(self, event):
+        """Override the closeEvent method to ensure active task on DAQ is closed."""
+        if self.pw.task_exists:
+            self.pw.dev.close()
+            
+        event.accept()
 
 class PlotWidget(QtWidgets.QWidget):
     def __init__(self, parent) -> None:
@@ -40,9 +48,10 @@ class PlotWidget(QtWidgets.QWidget):
         self.stop_stream_btn.clicked.connect(self.stop)
         self.stop_stream_btn.setEnabled(False)
 
-        # Define variables for plotting
+        # Define variables for storing data and plotting
         samples_to_show = 250
         self.time = [i for i in range(samples_to_show)]
+        self.raw = list()  # A list of np.arrays storing the raw data from every channel read
         self.emg_tib = [0 for i in range(samples_to_show)]
         self.emg_soleus = [0 for i in range(samples_to_show)]
         self.copX = [0]
@@ -119,6 +128,7 @@ class PlotWidget(QtWidgets.QWidget):
     def update_plot(self):
         # Read the voltage from the DAQ
         data = self.dev.read()
+        self.raw.append(data)
 
         # Calculate the Center of Pressure
         copX = -1 * ((data[4] + (-0.040934 * data[0])) / data[2])
