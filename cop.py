@@ -54,8 +54,8 @@ class PlotWidget(QtWidgets.QWidget):
         self.raw = list()  # A list of np.arrays storing the raw data from every channel read
         self.emg_tib = [0 for i in range(samples_to_show)]
         self.emg_soleus = [0 for i in range(samples_to_show)]
-        self.copX = [0]
-        self.copY = [0]
+        self.copX = []
+        self.copY = []
         self.subplots = dict()
 
         # Create the subplots
@@ -79,9 +79,9 @@ class PlotWidget(QtWidgets.QWidget):
         # Create the CoP plot
         cop_plotItem = pg_layout.addPlot(row=0, col=0, title="Center of Pressure")
         cop_plotItem.setRange(xRange=(-0.254, 0.254), yRange=(-0.254, 0.254))
-        cop_plotItem.enableAutoRange(enable=False)  # Disable automatic adjustment of axes ranges
+        cop_plotItem.disableAutoRange(axis='xy')  # Disable automatic adjustment of axes ranges
         cop_plotItem.invertX(b=True)  # AMTI axis definitions mean the +X is actually on the left of the graph
-        cop_plotLine = cop_plotItem.plot(x=self.copX, y=self.copY, pen=None, symbol='o')
+        cop_plotLine = cop_plotItem.plot(x=[0], y=[0], pen=None, symbol='o')
         self.subplots['cop'] = cop_plotLine
 
         # Create plots for the two EMG channels
