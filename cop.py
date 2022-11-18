@@ -5,6 +5,7 @@ import pyqtgraph as pg
 from USB6210 import DAQ
 import numpy as np
 
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__(parent=None)
@@ -24,9 +25,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         """Override the closeEvent method to ensure active task on DAQ is closed."""
         if self.pw.task_exists:
-            self.pw.dev.close()
+            self.pw.stop()
 
         event.accept()
+
 
 class PlotWidget(QtWidgets.QWidget):
     def __init__(self, parent) -> None:
@@ -37,10 +39,15 @@ class PlotWidget(QtWidgets.QWidget):
         self.timer.setInterval(1)
         self.timer.timeout.connect(self.update_plot)
 
+        # Initiate a timer for the protocol
+        self.protocol_timer = QtCore.QTimer(parent=self)
+        self.protocol_timer.setInterval(1)
+        self.protocol_timer.timeout.connect(self.protocol_plot)
+
         # Define buttons
         self.start_daq_btn = QtWidgets.QPushButton("Start DAQ", parent=self)
         self.start_daq_btn.clicked.connect(self.start_daq)
-        
+
         self.start_stream_btn = QtWidgets.QPushButton("Stream Data", parent=self)
         self.start_stream_btn.clicked.connect(self.start_streaming)
         self.start_stream_btn.setEnabled(False)
@@ -124,6 +131,7 @@ class PlotWidget(QtWidgets.QWidget):
     def stop(self):
         """Stop the stream of data, clear the DAQ task, and remove DAQ device from memory."""
         self.timer.stop()
+        self.protocol_timer.stop()
         self.dev.stop()
         self.dev.close()
         del self.dev
@@ -148,14 +156,31 @@ class PlotWidget(QtWidgets.QWidget):
 
         # Update the plot
         self.subplots['cop'].setData(x=[self.copX[-1]], y=[self.copY[-1]])
-    
+
+    def protocol_plot(self):
+        """Read the DAQ and update the CoP plot."""
+        # Read the voltage from the DAQ
+        data = self.dev.read()
+        self.raw.append(data)
+
+        # Calculate the Center of Pressure
+        copX = -1 * ((data[4] + (-0.040934 * data[0])) / data[2])
+        self.copX.append(copX)
+        copY = (data[3] - (-0.040934 * data[1])) / data[2]
+        self.copY.append(copY)
+
+        if copX > self.cop_upper or copX < self.cop_lower:
+            print("APA")
+            self.protocol_timer.stop()
+            self.stop()
+
+        # Update the plot
+        self.subplots['cop'].setData(x=[self.copX[-1]], y=[self.copY[-1]])
+
     def start_protocol(self):
         """Start the PSI collection protocol. Begin with 10s of quiet stance to capture baseline sway."""
         # Disable all other buttons while protocol is running
         self.start_protocol_btn.setEnabled(False)
-        self.start_daq_btn.setEnabled(False)
-        self.start_stream_btn.setEnabled(False)
-        self.stop_stream_btn.setEnabled(False)
 
         # Get the baseline CoP
         self.baseline()
@@ -166,21 +191,35 @@ class PlotWidget(QtWidgets.QWidget):
         self.copX = []
         self.copY = []
         self.raw = []
-        quiet_stance_timer = QtCore.QTimer(parent=self)
-        quiet_stance_timer.setInterval(10000)  # 10 secs
-        quiet_stance_timer.setSingleShot(True)
-        quiet_stance_timer.timeout.connect(self.stop)
-        quiet_stance_timer.timeout.connect(self._baseline_cop)
+        baseline_timer = QtCore.QTimer(parent=self)
+        baseline_timer.setInterval(10000)  # 10 secs
+        baseline_timer.setSingleShot(True)
+        baseline_timer.timeout.connect(self.stop)
+        baseline_timer.timeout.connect(self._baseline_cop)
 
         # Start the device, the 10s timer, and the data stream
         self.start_daq()
-        quiet_stance_timer.start()
+        self.start_daq_btn.setEnabled(False)
+        self.start_stream_btn.setEnabled(False)
+        self.stop_stream_btn.setEnabled(False)
+        baseline_timer.start()
         self.start_streaming()
-    
-    def _baseline_cop(self):
-        stdev = np.std(self.copX)
-        self.sd = 2 * stdev        
 
+    def _baseline_cop(self):
+        print("Baseline Calculated")
+        origin = np.mean(self.copX)
+        stdev = np.std(self.copX)
+        sd = 5 * stdev
+
+        self.cop_upper = origin + sd
+        self.cop_lower = origin - sd
+
+        # Start the protocol streaming
+        self.start_daq()
+        self.start_daq_btn.setEnabled(False)
+        self.start_stream_btn.setEnabled(False)
+        self.stop_stream_btn.setEnabled(False)
+        self.protocol_timer.start()
 
 
 app = QtWidgets.QApplication()
