@@ -24,7 +24,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """Override the closeEvent method to ensure active task on DAQ is closed."""
         if self.pw.task_exists:
             self.pw.dev.close()
-            
+
         event.accept()
 
 class PlotWidget(QtWidgets.QWidget):
@@ -58,7 +58,7 @@ class PlotWidget(QtWidgets.QWidget):
         self.copY = [0]
         self.subplots = dict()
 
-        # Build the subplots
+        # Create the subplots
         self.plot_widget = self.build_subplots()
 
         # Initiate variable to store the state of the task
@@ -115,9 +115,11 @@ class PlotWidget(QtWidgets.QWidget):
         self.start_stream_btn.setEnabled(False)
 
     def stop(self):
+        """Stop the stream of data, clear the DAQ task, and remove DAQ device from memory."""
         self.timer.stop()
         self.dev.stop()
         self.dev.close()
+        del self.dev
         self.task_exists = False
 
         # Enable/disable relevant buttons
