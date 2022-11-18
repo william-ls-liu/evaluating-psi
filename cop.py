@@ -3,6 +3,7 @@
 from PySide6 import QtCore, QtWidgets
 import pyqtgraph as pg
 from USB6210 import DAQ
+import numpy as np
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
@@ -48,6 +49,9 @@ class PlotWidget(QtWidgets.QWidget):
         self.stop_stream_btn.clicked.connect(self.stop)
         self.stop_stream_btn.setEnabled(False)
 
+        self.start_protocol_btn = QtWidgets.QPushButton("Start Protocol", parent=self)
+        self.start_protocol_btn.clicked.connect(self.start_protocol)
+
         # Define variables for storing data and plotting
         samples_to_show = 250
         self.time = [i for i in range(samples_to_show)]
@@ -70,6 +74,7 @@ class PlotWidget(QtWidgets.QWidget):
         self.layout.addWidget(self.start_daq_btn)
         self.layout.addWidget(self.start_stream_btn)
         self.layout.addWidget(self.stop_stream_btn)
+        self.layout.addWidget(self.start_protocol_btn)
         self.setLayout(self.layout)
 
     def build_subplots(self):
@@ -100,6 +105,7 @@ class PlotWidget(QtWidgets.QWidget):
         return pg_layout
 
     def start_daq(self):
+        """Create the DAQ task."""
         self.dev = DAQ('Dev1')
         self.dev.create_task('ai1:6')
         self.dev.start()
@@ -111,6 +117,7 @@ class PlotWidget(QtWidgets.QWidget):
         self.stop_stream_btn.setEnabled(True)
 
     def start_streaming(self):
+        """Start streaming the data from the DAQ."""
         self.timer.start()
         self.start_stream_btn.setEnabled(False)
 
@@ -128,6 +135,7 @@ class PlotWidget(QtWidgets.QWidget):
         self.stop_stream_btn.setEnabled(False)
 
     def update_plot(self):
+        """Read the DAQ and update the CoP plot."""
         # Read the voltage from the DAQ
         data = self.dev.read()
         self.raw.append(data)
@@ -140,6 +148,39 @@ class PlotWidget(QtWidgets.QWidget):
 
         # Update the plot
         self.subplots['cop'].setData(x=[self.copX[-1]], y=[self.copY[-1]])
+    
+    def start_protocol(self):
+        """Start the PSI collection protocol. Begin with 10s of quiet stance to capture baseline sway."""
+        # Disable all other buttons while protocol is running
+        self.start_protocol_btn.setEnabled(False)
+        self.start_daq_btn.setEnabled(False)
+        self.start_stream_btn.setEnabled(False)
+        self.stop_stream_btn.setEnabled(False)
+
+        # Get the baseline CoP
+        self.baseline()
+
+    def baseline(self):
+        """Calculate the baseline, lateral, CoP."""
+        # Reset all the variables used to store data
+        self.copX = []
+        self.copY = []
+        self.raw = []
+        quiet_stance_timer = QtCore.QTimer(parent=self)
+        quiet_stance_timer.setInterval(10000)  # 10 secs
+        quiet_stance_timer.setSingleShot(True)
+        quiet_stance_timer.timeout.connect(self.stop)
+        quiet_stance_timer.timeout.connect(self._baseline_cop)
+
+        # Start the device, the 10s timer, and the data stream
+        self.start_daq()
+        quiet_stance_timer.start()
+        self.start_streaming()
+    
+    def _baseline_cop(self):
+        stdev = np.std(self.copX)
+        self.sd = 2 * stdev        
+
 
 
 app = QtWidgets.QApplication()
