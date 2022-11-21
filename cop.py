@@ -37,7 +37,12 @@ class PlotWidget(QtWidgets.QWidget):
         # Set-up QTimer to initiate reads from the DAQ
         self.timer = QtCore.QTimer(parent=self)
         self.timer.setInterval(1)
-        self.timer.timeout.connect(self.update_plot)
+        self.timer.timeout.connect(self.read_daq)
+
+        # Initiate a timer for the streaming plot
+        self.plot_timer = QtCore.QTimer(parent=self)
+        self.plot_timer.setInterval(33)  # ~30Hz since drawing new graphs is resource-intensive
+        self.plot_timer.timeout.connect(self.update_plot)
 
         # Initiate a timer for the protocol
         self.protocol_timer = QtCore.QTimer(parent=self)
@@ -126,12 +131,14 @@ class PlotWidget(QtWidgets.QWidget):
     def start_streaming(self):
         """Start streaming the data from the DAQ."""
         self.timer.start()
+        self.plot_timer.start()
         self.start_stream_btn.setEnabled(False)
 
     def stop(self):
         """Stop the stream of data, clear the DAQ task, and remove DAQ device from memory."""
         self.timer.stop()
         self.protocol_timer.stop()
+        self.plot_timer.stop()
         self.dev.stop()
         self.dev.close()
         del self.dev
@@ -142,9 +149,8 @@ class PlotWidget(QtWidgets.QWidget):
         self.start_stream_btn.setEnabled(False)
         self.stop_stream_btn.setEnabled(False)
 
-    def update_plot(self):
-        """Read the DAQ and update the CoP plot."""
-        # Read the voltage from the DAQ
+    def read_daq(self):
+        """Method to read the DAQ and convert data to CoP."""
         data = self.dev.read()
         self.raw.append(data)
 
@@ -154,6 +160,7 @@ class PlotWidget(QtWidgets.QWidget):
         copY = (data[3] - (-0.040934 * data[1])) / data[2]
         self.copY.append(copY)
 
+    def update_plot(self):
         # Update the plot
         self.subplots['cop'].setData(x=[self.copX[-1]], y=[self.copY[-1]])
 
@@ -169,13 +176,12 @@ class PlotWidget(QtWidgets.QWidget):
         copY = (data[3] - (-0.040934 * data[1])) / data[2]
         self.copY.append(copY)
 
+        self.update_plot()
+
         if copX > self.cop_upper or copX < self.cop_lower:
             print("APA")
-            self.protocol_timer.stop()
             self.stop()
-
-        # Update the plot
-        self.subplots['cop'].setData(x=[self.copX[-1]], y=[self.copY[-1]])
+            self.start_protocol_btn.setEnabled(True)
 
     def start_protocol(self):
         """Start the PSI collection protocol. Begin with 10s of quiet stance to capture baseline sway."""
