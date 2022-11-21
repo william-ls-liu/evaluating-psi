@@ -127,12 +127,14 @@ class PlotWidget(QtWidgets.QWidget):
         self.start_daq_btn.setEnabled(False)
         self.start_stream_btn.setEnabled(True)
         self.stop_stream_btn.setEnabled(True)
+        self.start_protocol_btn.setEnabled(False)
 
     def start_streaming(self):
         """Start streaming the data from the DAQ."""
         self.timer.start()
         self.plot_timer.start()
         self.start_stream_btn.setEnabled(False)
+        self.start_protocol_btn.setEnabled(False)
 
     def stop(self):
         """Stop the stream of data, clear the DAQ task, and remove DAQ device from memory."""
@@ -148,6 +150,7 @@ class PlotWidget(QtWidgets.QWidget):
         self.start_daq_btn.setEnabled(True)
         self.start_stream_btn.setEnabled(False)
         self.stop_stream_btn.setEnabled(False)
+        self.start_protocol_btn.setEnabled(True)
 
     def read_daq(self):
         """Method to read the DAQ and convert data to CoP."""
