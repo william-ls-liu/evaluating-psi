@@ -6,6 +6,7 @@ from nidaqmx.constants import AcquisitionType, TerminalConfiguration
 import numpy as np
 import json
 
+
 class DAQ:
     """
     This object represents a National Instruments DAQ Device.
@@ -24,27 +25,28 @@ class DAQ:
 
         # Initiate variables to store state
         self.is_running = False
-        self.is_task = False   
+        self.are_tasks = False
 
     def _read_settings(self):
         """Read the settings file to get the analog sensitivities."""
         with open("amti_settings.json", 'r') as file:
             settings = json.load(file)
-        
+
         analog_sensitivities = np.array(settings['analog_sensitivities'], dtype=np.float64)
         analog_sensitivities = analog_sensitivities * 1e-3  # Convert units from mV/N to V/N
 
         return analog_sensitivities
 
-    def create_task(self, channels_str: str):
+    def create_tasks(self, channels_str: str):
         # I belive assigning a name to the task will cause an error when trying
         # to create multiple tasks, so I'm assigning it a name to prevent unintended
         # creation of tasks.
-        if self.is_task:
+        if self.are_tasks:
             raise ValueError("Task is already running.")
 
-        self.task = nidaqmx.Task(new_task_name="Active Task")
-        self.is_task = True
+        self.task = nidaqmx.Task(new_task_name="Reader")
+        self.counter = nidaqmx.Task(new_task_name="Counter")
+        self.are_tasks = True
 
         # Add the channels to the task
         # Use Referenced Single Ended to measure relative to GND
@@ -59,13 +61,21 @@ class DAQ:
 
         # Define sample timing parameters
         self.task.timing.cfg_samp_clk_timing(
-            rate=50, 
+            rate=50,
             sample_mode=AcquisitionType.CONTINUOUS
         )
 
+        # Set up the counter task for generating TTL pulse
+        self.counter.co_channels.add_co_pulse_chan_time(
+            counter=f"{self.dev_name}/ctr0",
+            low_time=0.00005,
+            high_time=0.00005
+        )
+        self.counter.timing.cfg_implicit_timing(sample_mode=AcquisitionType.FINITE, samps_per_chan=1)
+
     def start(self):
         """Start the task, if there is one already defined."""
-        if self.is_task:
+        if self.are_tasks:
             if self.is_running:
                 raise KeyError("The task has already been started.")
             else:
@@ -76,9 +86,10 @@ class DAQ:
 
     def stop(self):
         """Stop the active task, if there is one already defined."""
-        if self.is_task:
+        if self.are_tasks:
             if self.is_running:
                 self.task.stop()
+                self.counter.stop()
                 self.is_running = False
             else:
                 raise KeyError("Task is already stopped.")
@@ -87,19 +98,25 @@ class DAQ:
 
     def close(self):
         """Clear the active task, which is unrecoverable. Task will have to be recreated."""
-        if self.is_task:
+        if self.are_tasks:
             if self.is_running:
                 self.task.stop()
+                self.counter.stop()
             self.task.close()
-            self.is_task = False
+            self.counter.close()
+            self.are_tasks = False
             self.is_running = False
             del self.task
-        
+
     def read(self):
         """Read the data present in the buffer of the DAQ and convert the voltage value to Newtons."""
-        if not self.is_task:
+        if not self.are_tasks:
             raise KeyError("No active task. Use create_task() to create one.")
         if not self.is_running:
             raise KeyError("Task has not been started, use start() to begin the task.")
-            
+
         return np.array(self.task.read()) / self._analog_sensitivities
+
+    def ttl(self):
+        """Generate the TTL pulse at the counter terminal."""
+        self.counter.start()
