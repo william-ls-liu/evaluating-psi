@@ -119,7 +119,7 @@ class PlotWidget(QtWidgets.QWidget):
     def start_daq(self):
         """Create the DAQ task."""
         self.dev = DAQ('Dev1')
-        self.dev.create_task('ai1:6')
+        self.dev.create_tasks('ai1:6')
         self.dev.start()
         self.task_exists = True
 
@@ -182,6 +182,7 @@ class PlotWidget(QtWidgets.QWidget):
         self.update_plot()
 
         if copX > self.cop_upper or copX < self.cop_lower:
+            self.dev.ttl()  # Trigger the TTL output
             print("APA")
             self.stop()
             self.start_protocol_btn.setEnabled(True)
