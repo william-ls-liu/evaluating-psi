@@ -41,7 +41,7 @@ class PlotWidget(QtWidgets.QWidget):
 
         # Initiate a timer for the streaming plot
         self.plot_timer = QtCore.QTimer(parent=self)
-        self.plot_timer.setInterval(33)  # ~30Hz since drawing new graphs is resource-intensive
+        self.plot_timer.setInterval(33.333)  # ~30Hz since drawing new graphs is resource-intensive
         self.plot_timer.timeout.connect(self.update_plot)
 
         # Initiate a timer for the protocol
@@ -179,8 +179,6 @@ class PlotWidget(QtWidgets.QWidget):
         copY = (data[3] - (-0.040934 * data[1])) / data[2]
         self.copY.append(copY)
 
-        self.update_plot()
-
         if copX > self.cop_upper or copX < self.cop_lower:
             self.dev.ttl()  # Trigger the TTL output
             print("APA")
@@ -191,6 +189,9 @@ class PlotWidget(QtWidgets.QWidget):
         """Start the PSI collection protocol. Begin with 10s of quiet stance to capture baseline sway."""
         # Disable all other buttons while protocol is running
         self.start_protocol_btn.setEnabled(False)
+        self.start_daq_btn.setEnabled(False)
+        self.start_stream_btn.setEnabled(False)
+        self.stop_stream_btn.setEnabled(False)
 
         # Get the baseline CoP
         self.baseline()
@@ -209,9 +210,6 @@ class PlotWidget(QtWidgets.QWidget):
 
         # Start the device, the 10s timer, and the data stream
         self.start_daq()
-        self.start_daq_btn.setEnabled(False)
-        self.start_stream_btn.setEnabled(False)
-        self.stop_stream_btn.setEnabled(False)
         baseline_timer.start()
         self.start_streaming()
 
@@ -230,6 +228,7 @@ class PlotWidget(QtWidgets.QWidget):
         self.start_stream_btn.setEnabled(False)
         self.stop_stream_btn.setEnabled(False)
         self.protocol_timer.start()
+        self.plot_timer.start()
 
 
 app = QtWidgets.QApplication()
