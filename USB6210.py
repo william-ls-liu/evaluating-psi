@@ -71,7 +71,7 @@ class DAQ:
 
         # Define sample timing parameters
         self.task.timing.cfg_samp_clk_timing(
-            rate=50,
+            rate=100,
             sample_mode=AcquisitionType.CONTINUOUS
         )
 
