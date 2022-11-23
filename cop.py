@@ -41,7 +41,7 @@ class PlotWidget(QtWidgets.QWidget):
 
         # Initiate a timer for the streaming plot
         self.plot_timer = QtCore.QTimer(parent=self)
-        self.plot_timer.setInterval(33.333)  # ~30Hz since drawing new graphs is resource-intensive
+        self.plot_timer.setInterval(66.66)  # ~15Hz since drawing new graphs is resource-intensive
         self.plot_timer.timeout.connect(self.update_plot)
 
         # Initiate a timer for the protocol
@@ -119,7 +119,7 @@ class PlotWidget(QtWidgets.QWidget):
     def start_daq(self):
         """Create the DAQ task."""
         self.dev = DAQ('Dev1')
-        self.dev.create_tasks('ai1:6')
+        self.dev.create_tasks('ai1:6', 'ai7:8')
         self.dev.start()
         self.task_exists = True
 
@@ -163,9 +163,17 @@ class PlotWidget(QtWidgets.QWidget):
         copY = (data[3] - (-0.040934 * data[1])) / data[2]
         self.copY.append(copY)
 
+        # Add EMG data for the plot
+        self.emg_soleus = self.emg_soleus[1:]
+        self.emg_tib = self.emg_tib[1:]
+        self.emg_soleus.append(data[6])
+        self.emg_tib.append(data[7])
+
     def update_plot(self):
         # Update the plot
         self.subplots['cop'].setData(x=[self.copX[-1]], y=[self.copY[-1]])
+        self.subplots['soleus'].setData(x=self.time, y=self.emg_soleus)
+        self.subplots['tib'].setData(x=self.time, y=self.emg_tib)
 
     def protocol_plot(self):
         """Read the DAQ and update the CoP plot."""
@@ -179,8 +187,15 @@ class PlotWidget(QtWidgets.QWidget):
         copY = (data[3] - (-0.040934 * data[1])) / data[2]
         self.copY.append(copY)
 
+        # Add EMG data for the plot
+        self.emg_soleus = self.emg_soleus[1:]
+        self.emg_tib = self.emg_tib[1:]
+        self.emg_soleus.append(data[6])
+        self.emg_tib.append(data[7])
+
         if copX > self.cop_upper or copX < self.cop_lower:
-            self.dev.ttl()  # Trigger the TTL output
+            # self.dev.ttl()  # Trigger the TTL output
+            self.dev.counter.start()
             print("APA")
             self.stop()
             self.start_protocol_btn.setEnabled(True)
@@ -212,6 +227,7 @@ class PlotWidget(QtWidgets.QWidget):
         self.start_daq()
         baseline_timer.start()
         self.start_streaming()
+        self.stop_stream_btn.setEnabled(False)
 
     def _baseline_cop(self):
         print("Baseline Calculated")
