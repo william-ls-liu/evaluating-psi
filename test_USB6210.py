@@ -8,21 +8,22 @@ class TestTask(unittest.TestCase):
     def setUp(self) -> None:
         self.dev_name = 'Dev1'
         self.device = DAQ(self.dev_name)
-        self.channels = "ai1:6"
+        self.fp_channels = "ai1:6"
+        self.emg_channels = "ai7:8"
 
     def test_create_task_success(self):
         # Test creating a task
-        self.device.create_tasks(self.channels)
+        self.device.create_tasks(self.fp_channels, self.emg_channels)
         self.assertTrue(self.device.task.is_task_done())
         self.assertTrue(self.device.are_tasks)
-        self.assertEqual(self.device.task.channel_names, [f"{self.dev_name}/ai{i}" for i in range(1, 7)])
+        self.assertEqual(self.device.task.channel_names, [f"{self.dev_name}/ai{i}" for i in range(1, 9)])
         self.device.close()
 
     def test_create_task_fail(self):
         # Test creating a task when one already exists
-        self.device.create_tasks(self.channels)
+        self.device.create_tasks(self.fp_channels, self.emg_channels)
         with self.assertRaises(ValueError):
-            self.device.create_tasks(self.channels)
+            self.device.create_tasks(self.fp_channels, self.emg_channels)
         self.device.close()
 
     def test_task_start(self):
@@ -31,7 +32,7 @@ class TestTask(unittest.TestCase):
             self.device.start()
 
         # Test creating a task and starting it
-        self.device.create_tasks(self.channels)
+        self.device.create_tasks(self.fp_channels, self.emg_channels)
         self.device.start()
         self.assertFalse(self.device.task.is_task_done())
         self.assertTrue(self.device.are_tasks)
@@ -62,7 +63,7 @@ class TestTask(unittest.TestCase):
             self.device.stop()
 
         # Test stopping task after one has been created, but not started
-        self.device.create_tasks(self.channels)
+        self.device.create_tasks(self.fp_channels, self.emg_channels)
         with self.assertRaises(KeyError):
             self.device.stop()
 
@@ -80,10 +81,10 @@ class TestTask(unittest.TestCase):
 
     def test_read(self):
         # Test the read functionality
-        self.device.create_tasks(self.channels)
+        self.device.create_tasks(self.fp_channels, self.emg_channels)
         self.device.start()
         buffer = self.device.read()
-        self.assertEqual(len(buffer), 6)
+        self.assertEqual(len(buffer), 8)
         self.device.close()
 
         # Test reading when a task hasnt been created
@@ -91,7 +92,7 @@ class TestTask(unittest.TestCase):
             self.device.read()
 
         # Test reading when a task has been created, but not started
-        self.device.create_tasks(self.channels)
+        self.device.create_tasks(self.fp_channels, self.emg_channels)
         with self.assertRaises(KeyError):
             self.device.read()
         self.device.close()
