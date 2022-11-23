@@ -34,10 +34,12 @@ class DAQ:
 
         analog_sensitivities = np.array(settings['analog_sensitivities'], dtype=np.float64)
         analog_sensitivities = analog_sensitivities * 1e-3  # Convert units from mV/N to V/N
+        # Add [1, 1] to the end of the analog sensitivities array as EMG values are not scaled
+        analog_sensitivities = np.append(analog_sensitivities, [1, 1])
 
         return analog_sensitivities
 
-    def create_tasks(self, channels_str: str):
+    def create_tasks(self, fp_channels: str, emg_channels: str):
         # I belive assigning a name to the task will cause an error when trying
         # to create multiple tasks, so I'm assigning it a name to prevent unintended
         # creation of tasks.
@@ -53,9 +55,17 @@ class DAQ:
         # The voltage output of the Gen5 amp is +/- 5V, but I don't think these parameters
         # actually change anything about the measurement.
         self.task.ai_channels.add_ai_voltage_chan(
-            physical_channel=f"{self.dev_name}/{channels_str}",
+            physical_channel=f"{self.dev_name}/{fp_channels}",
             min_val=-5,
             max_val=5,
+            terminal_config=TerminalConfiguration.RSE
+        )
+
+        # Add the EMG channels
+        self.task.ai_channels.add_ai_voltage_chan(
+            physical_channel=f"{self.dev_name}/{emg_channels}",
+            min_val=-2.5,
+            max_val=2.5,
             terminal_config=TerminalConfiguration.RSE
         )
 
