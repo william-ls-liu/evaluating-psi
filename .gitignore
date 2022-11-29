@@ -168,6 +168,7 @@ cython_debug/
 blah.py
 amti_platform.py
 setup.cfg
+sound_test.py
 
 
 # PyCharm
