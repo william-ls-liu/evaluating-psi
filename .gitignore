@@ -169,7 +169,7 @@ blah.py
 amti_platform.py
 setup.cfg
 sound_test.py
-
+*.wav
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
