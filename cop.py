@@ -4,6 +4,7 @@ from PySide6 import QtCore, QtWidgets
 import pyqtgraph as pg
 from USB6210 import DAQ
 import numpy as np
+from sounds import Countdown, StartTone
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -225,11 +226,18 @@ class PlotWidget(QtWidgets.QWidget):
         elif self.copY:
             raise ValueError("The list to store the CoP Y is not empty.")
 
+        # Create the sound effect, connect the end of the effect to initiating the protocol
+        sound = Countdown(self)
+        sound.play()
+        sound.playingChanged.connect(self._baseline_helper)
+
+    def _baseline_helper(self):
+        """Helper method to initiate the protocol recording after the sound effect has finished."""
         baseline_timer = QtCore.QTimer(parent=self)
         baseline_timer.setInterval(10000)  # 10 secs
         baseline_timer.setSingleShot(True)
         baseline_timer.timeout.connect(self.stop)
-        baseline_timer.timeout.connect(self._baseline_cop)
+        baseline_timer.timeout.connect(self.baseline_cop)
 
         # Start the device, the 10s timer, and the data stream
         self.start_daq()
@@ -237,7 +245,8 @@ class PlotWidget(QtWidgets.QWidget):
         self.start_streaming()
         self.stop_stream_btn.setEnabled(False)
 
-    def _baseline_cop(self):
+    def baseline_cop(self):
+        """Calculate the baseline CoP sway, then start the protocol data collection."""
         print("Baseline Calculated")
         origin = np.mean(self.copX)
         stdev = np.std(self.copX)
@@ -247,6 +256,16 @@ class PlotWidget(QtWidgets.QWidget):
         self.cop_lower = origin - sd
         print(self.cop_lower, self.cop_upper)
 
+        # Reset all the variables used to store data
+        self.copX = []
+        self.copY = []
+        self.raw = []
+
+        sound = StartTone(self)
+        sound.play()
+        sound.playingChanged.connect(self._protocol_helper)
+
+    def _protocol_helper(self):
         # Start the protocol streaming
         self.start_daq()
         self.start_daq_btn.setEnabled(False)
