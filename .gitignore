@@ -166,6 +166,9 @@ cython_debug/
 *.vsdx
 
 blah.py
+amti_platform.py
+setup.cfg
+
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
