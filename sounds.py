@@ -17,4 +17,3 @@ class StartTone(QtMultimedia.QSoundEffect):
         super().__init__(parent=parent)
         self.setSource(QtCore.QUrl.fromLocalFile("start_tone.wav"))
         self.setVolume(1)
-
