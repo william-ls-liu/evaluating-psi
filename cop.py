@@ -5,6 +5,8 @@ import pyqtgraph as pg
 from USB6210 import DAQ
 import numpy as np
 from sounds import Countdown, StartTone
+import csv
+import datetime
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -50,6 +52,12 @@ class PlotWidget(QtWidgets.QWidget):
         self.protocol_timer.setInterval(1)
         self.protocol_timer.timeout.connect(self.protocol)
 
+        # Initiate a timer for the final 5 s of the protocol
+        self.residual_timer = QtCore.QTimer(parent=self)
+        self.residual_timer.setInterval(5000)
+        self.residual_timer.setSingleShot(True)
+        self.residual_timer.timeout.connect(self.stop_protocol)
+
         # Define buttons
         self.start_daq_btn = QtWidgets.QPushButton("Start DAQ", parent=self)
         self.start_daq_btn.clicked.connect(self.start_daq)
@@ -69,6 +77,7 @@ class PlotWidget(QtWidgets.QWidget):
         samples_to_show = 250
         self.time = [i for i in range(samples_to_show)]
         self.raw = list()  # A list of np.arrays storing the raw data from every channel read
+        self.timestamp = list()
         self.emg_tib = [0 for i in range(samples_to_show)]
         self.emg_soleus = [0 for i in range(samples_to_show)]
         self.copX = []
@@ -80,6 +89,9 @@ class PlotWidget(QtWidgets.QWidget):
 
         # Initiate variable to store the state of the task
         self.task_exists = False
+
+        # Initiate variable to store whether stimulus has been triggerd
+        self.stim_triggered = False
 
         # Set the layout
         self.layout = QtWidgets.QVBoxLayout()
@@ -199,11 +211,11 @@ class PlotWidget(QtWidgets.QWidget):
         self.emg_tib.append(data[7])
 
         if copX > self.cop_upper or copX < self.cop_lower:
-            self.dev.ttl()  # Trigger the TTL output
-            # self.dev.counter.start()
-            print("APA")
-            self.stop()
-            self.start_protocol_btn.setEnabled(True)
+            if not self.stim_triggered:
+                self.residual_timer.start()
+                self.dev.ttl()  # Trigger the TTL output
+                self.stim_triggered = True
+                print("APA")
 
     def start_protocol(self):
         """Start the PSI collection protocol. Begin with 10s of quiet stance to capture baseline sway."""
@@ -273,6 +285,24 @@ class PlotWidget(QtWidgets.QWidget):
         self.stop_stream_btn.setEnabled(False)
         self.protocol_timer.start()
         self.plot_timer.start()
+
+    def stop_protocol(self):
+        # Stop the DAQ Task
+        self.stop()
+        self.start_protocol_btn.setEnabled(True)
+        self.stim_triggered = False
+
+        fname = QtWidgets.QFileDialog.getSaveFileName(
+            parent=self,
+            caption="Select a location to save the data.",
+            filter="*.csv"
+        )
+
+        file = open(fname[0], 'w+', newline='')
+        with file:
+            write = csv.writer(file)
+            write.writerow(['Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz', 'EMG1', 'EMG2'])
+            write.writerows(self.raw)
 
 
 app = QtWidgets.QApplication()
