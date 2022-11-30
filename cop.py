@@ -6,7 +6,6 @@ from USB6210 import DAQ
 import numpy as np
 from sounds import Countdown, StartTone
 import csv
-import datetime
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -75,9 +74,8 @@ class PlotWidget(QtWidgets.QWidget):
 
         # Define variables for storing data and plotting
         samples_to_show = 250
-        self.time = [i for i in range(samples_to_show)]
+        self.samples = [i for i in range(samples_to_show)]
         self.raw = list()  # A list of np.arrays storing the raw data from every channel read
-        self.timestamp = list()
         self.emg_tib = [0 for i in range(samples_to_show)]
         self.emg_soleus = [0 for i in range(samples_to_show)]
         self.copX = []
@@ -118,13 +116,13 @@ class PlotWidget(QtWidgets.QWidget):
         emg_tib_plotItem = pg_layout.addPlot(row=0, col=1, title="EMG: Tibial")
         emg_tib_plotItem.setRange(yRange=(-2.5, 2.5))
         emg_tib_plotItem.disableAutoRange(axis='y')  # Disable just the y axis, so data still scrolls
-        emg_tib_plotLine = emg_tib_plotItem.plot(x=self.time, y=self.emg_tib)
+        emg_tib_plotLine = emg_tib_plotItem.plot(x=self.samples, y=self.emg_tib)
         self.subplots['tib'] = emg_tib_plotLine
 
         emg_soleus_plotItem = pg_layout.addPlot(row=1, col=1, title="EMG: Soleus")
         emg_soleus_plotItem.setRange(yRange=(-2.5, 2.5))
         emg_soleus_plotItem.disableAutoRange(axis='y')
-        emg_soleus_plotLine = emg_soleus_plotItem.plot(x=self.time, y=self.emg_soleus)
+        emg_soleus_plotLine = emg_soleus_plotItem.plot(x=self.samples, y=self.emg_soleus)
         self.subplots['soleus'] = emg_soleus_plotLine
 
         return pg_layout
@@ -182,6 +180,12 @@ class PlotWidget(QtWidgets.QWidget):
         self.emg_soleus.append(data[6])
         self.emg_tib.append(data[7])
 
+        # Remove data points to conserve memory
+        if len(self.copX) > 6000:
+            self.copX.pop(0)
+            self.copY.pop(0)
+            self.raw.pop(0)
+
     def update_plot(self):
         """
         Update the plot with the most recent data. The plot updates slower than data is read
@@ -189,8 +193,8 @@ class PlotWidget(QtWidgets.QWidget):
         on the screen.
         """
         self.subplots['cop'].setData(x=[self.copX[-1]], y=[self.copY[-1]])
-        self.subplots['soleus'].setData(x=self.time, y=self.emg_soleus)
-        self.subplots['tib'].setData(x=self.time, y=self.emg_tib)
+        self.subplots['soleus'].setData(x=self.samples, y=self.emg_soleus)
+        self.subplots['tib'].setData(x=self.samples, y=self.emg_tib)
 
     def protocol(self):
         """Read the DAQ and compare CoP values to the threshold for APA."""
@@ -287,22 +291,26 @@ class PlotWidget(QtWidgets.QWidget):
         self.plot_timer.start()
 
     def stop_protocol(self):
+        """Handle the clean-up required to stop the protocol, provide user with option to save the data to .csv."""
         # Stop the DAQ Task
         self.stop()
         self.start_protocol_btn.setEnabled(True)
         self.stim_triggered = False
 
+        # Open a save file dialog window
         fname = QtWidgets.QFileDialog.getSaveFileName(
             parent=self,
             caption="Select a location to save the data.",
             filter="*.csv"
         )
 
-        file = open(fname[0], 'w+', newline='')
-        with file:
-            write = csv.writer(file)
-            write.writerow(['Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz', 'EMG1', 'EMG2'])
-            write.writerows(self.raw)
+        # If user selects Cancel or doesn't enter a filename don't save a file
+        if fname[0] != '':
+            file = open(fname[0], 'w+', newline='')
+            with file:
+                write = csv.writer(file)
+                write.writerow(['Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz', 'EMG1', 'EMG2'])
+                write.writerows(self.raw)
 
 
 app = QtWidgets.QApplication()
