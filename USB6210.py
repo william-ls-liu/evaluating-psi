@@ -8,12 +8,16 @@ import json
 
 
 class DAQ:
-    """
-    This object represents a National Instruments DAQ Device.
-    """
+    """This object represents a National Instruments DAQ Device."""
 
-    def __init__(self, dev_name: str) -> None:
-        """Initiate the device, perform basic self test."""
+    def __init__(self, dev_name: str, rate: int = 100) -> None:
+        """
+        Initiate the device, perform basic self test.
+
+        :param dev_name: A str representing the name of the DAQ device,
+                         can be found in the NI Device Monitor software.
+        :param rate: The sample rate for data acquisition, default is 100Hz
+        """
         self.dev_name = dev_name
         self.dev = nidaqmx.system.Device(self.dev_name)
 
@@ -26,6 +30,9 @@ class DAQ:
         # Initiate variables to store state
         self.is_running = False
         self.are_tasks = False
+
+        # Set the sample rate
+        self.rate = rate
 
     def _read_settings(self):
         """Read the settings file to get the analog sensitivities."""
@@ -71,7 +78,7 @@ class DAQ:
 
         # Define sample timing parameters
         self.task.timing.cfg_samp_clk_timing(
-            rate=100,
+            rate=self.rate,
             sample_mode=AcquisitionType.CONTINUOUS
         )
 
