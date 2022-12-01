@@ -38,17 +38,20 @@ class PlotWidget(QtWidgets.QWidget):
 
         # Set-up QTimer to initiate reads from the DAQ
         self.timer = QtCore.QTimer(parent=self)
-        self.timer.setInterval(1)
+        # An interval of 0 means the timer will timeout as soon as all events in the queue have been processed
+        # This is basically running the timer as fast as possible, and will tie the software timer to the hardware
+        # timer on the DAQ, which is very accurate and fast.
+        self.timer.setInterval(0)
         self.timer.timeout.connect(self.read_daq)
 
         # Initiate a timer for the streaming plot
         self.plot_timer = QtCore.QTimer(parent=self)
-        self.plot_timer.setInterval(66.66)  # ~15Hz since drawing new graphs is resource-intensive
+        self.plot_timer.setInterval(33.33)  # ~15Hz since drawing new graphs is resource-intensive
         self.plot_timer.timeout.connect(self.update_plot)
 
         # Initiate a timer for the protocol
         self.protocol_timer = QtCore.QTimer(parent=self)
-        self.protocol_timer.setInterval(1)
+        self.protocol_timer.setInterval(0)
         self.protocol_timer.timeout.connect(self.protocol)
 
         # Initiate a timer for the final 5 s of the protocol
@@ -181,7 +184,7 @@ class PlotWidget(QtWidgets.QWidget):
         self.emg_tib.append(data[7])
 
         # Remove data points to conserve memory
-        if len(self.copX) > 6000:
+        if len(self.copX) > 60000:
             self.copX.pop(0)
             self.copY.pop(0)
             self.raw.pop(0)
