@@ -10,7 +10,7 @@ import json
 class DAQ:
     """This object represents a National Instruments DAQ Device."""
 
-    def __init__(self, dev_name: str, rate: int = 100) -> None:
+    def __init__(self, dev_name: str, rate: int = 1000) -> None:
         """
         Initiate the device, perform basic self test.
 
@@ -137,3 +137,7 @@ class DAQ:
     def ttl(self):
         """Generate the TTL pulse at the counter terminal."""
         self.counter.start()
+
+    def get_sample_rate(self):
+        """Getter for the sample rate."""
+        return self.rate
