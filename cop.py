@@ -88,11 +88,12 @@ class PlotWidget(QtWidgets.QWidget):
         self.start_protocol_btn.clicked.connect(self.start_protocol)
 
         # Define variables for storing data and plotting
-        samples_to_show = 250
+        samples_to_show = 2000
         self.samples = [i for i in range(samples_to_show)]
         self.raw = list()  # A list of np.arrays storing the raw data from every channel read
         self.emg_tib = [0 for i in range(samples_to_show)]
         self.emg_soleus = [0 for i in range(samples_to_show)]
+        self.Fz = [0 for i in range(samples_to_show)]
         self.copX = []
         self.copY = []
         self.subplots = dict()
@@ -120,12 +121,17 @@ class PlotWidget(QtWidgets.QWidget):
         pg_layout = pg.GraphicsLayoutWidget()
 
         # Create the CoP plot
-        cop_plotItem = pg_layout.addPlot(row=0, col=0, title="Center of Pressure")
+        cop_plotItem = pg_layout.addPlot(row=0, col=0, title="Center of Pressure (m)")
         cop_plotItem.setRange(xRange=(-0.254, 0.254), yRange=(-0.254, 0.254))
         cop_plotItem.disableAutoRange(axis='xy')  # Disable automatic adjustment of axes ranges
         cop_plotItem.invertX(b=True)  # AMTI axis definitions mean the +X is actually on the left of the graph
         cop_plotLine = cop_plotItem.plot(x=[0], y=[0], pen=None, symbol='o')
         self.subplots['cop'] = cop_plotLine
+
+        # Create plot for the Fz
+        Fz_plotItem = pg_layout.addPlot(row=1, col=0, title="Fz (N)")
+        Fz_plotLine = Fz_plotItem.plot(x=self.samples, y=self.Fz)
+        self.subplots['Fz'] = Fz_plotLine
 
         # Create plots for the two EMG channels
         emg_tib_plotItem = pg_layout.addPlot(row=0, col=1, title="EMG: Tibial")
@@ -190,6 +196,10 @@ class PlotWidget(QtWidgets.QWidget):
         copY = (data[3] - (-0.040934 * data[1])) / data[2]
         self.copY.append(copY)
 
+        # Add Fz to the plot
+        self.Fz = self.Fz[1:]
+        self.Fz.append(data[2])
+
         # Add EMG data for the plot
         self.emg_soleus = self.emg_soleus[1:]
         self.emg_tib = self.emg_tib[1:]
@@ -209,6 +219,7 @@ class PlotWidget(QtWidgets.QWidget):
         on the screen.
         """
         self.subplots['cop'].setData(x=[self.copX[-1]], y=[self.copY[-1]])
+        self.subplots['Fz'].setData(x=self.samples, y=self.Fz)
         self.subplots['soleus'].setData(x=self.samples, y=self.emg_soleus)
         self.subplots['tib'].setData(x=self.samples, y=self.emg_tib)
 
