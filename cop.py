@@ -4,7 +4,8 @@ from PySide6 import QtCore, QtWidgets
 import pyqtgraph as pg
 from USB6210 import DAQ
 import numpy as np
-from sounds import Countdown, StartTone
+from sounds import Countdown
+from progress_widget import ProgressWidget
 import csv
 from datetime import datetime
 
@@ -16,11 +17,18 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Central widget to serve as contains for other widgets
         self.cw = QtWidgets.QWidget(parent=self)
-        layout = QtWidgets.QVBoxLayout()
+        layout = QtWidgets.QHBoxLayout()
 
         # Add the PlotWidget to layout
         self.pw = PlotWidget(self)
         layout.addWidget(self.pw)
+
+        # Add the ProgressWidget to the layout
+        self.progress_widget = ProgressWidget(self)
+        layout.addWidget(self.progress_widget)
+
+        # Connect the status signal to the progress widget
+        self.pw.status_signal.connect(self.progress_widget.update_label)
 
         self.cw.setLayout(layout)
         self.setCentralWidget(self.cw)
@@ -34,6 +42,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 class PlotWidget(QtWidgets.QWidget):
+    # Signal to report on the status of the protocol
+    status_signal = QtCore.Signal(str)
+
     def __init__(self, parent) -> None:
         super().__init__(parent=parent)
 
@@ -224,7 +235,7 @@ class PlotWidget(QtWidgets.QWidget):
                 self.residual_timer.start()
                 self.dev.ttl()  # Trigger the TTL output
                 self.stim_triggered = True
-                print("APA")
+                self.status_signal.emit("APA detected. Stimulus was delivered.")
 
     def start_protocol(self):
         """Start the PSI collection protocol. Begin with 10s of quiet stance to capture baseline sway."""
@@ -254,6 +265,9 @@ class PlotWidget(QtWidgets.QWidget):
 
     def _baseline_helper(self):
         """Helper method to initiate the protocol recording after the sound effect has finished."""
+        # Emit a signal to update the progress window
+        self.status_signal.emit("Collecting baseline")
+
         baseline_timer = QtCore.QTimer(parent=self)
         baseline_timer.setInterval(10000)  # 10 secs
         baseline_timer.setSingleShot(True)
@@ -268,23 +282,20 @@ class PlotWidget(QtWidgets.QWidget):
 
     def baseline_cop(self):
         """Calculate the baseline CoP sway, then start the protocol data collection."""
-        print("Baseline Calculated")
+        self.status_signal.emit("Baseline Center of Pressure has been collected. Patient can now take a step.")
         origin = np.mean(self.copX)
         stdev = np.std(self.copX)
         sd = 5 * stdev
 
         self.cop_upper = origin + sd
         self.cop_lower = origin - sd
-        print(self.cop_lower, self.cop_upper)
 
         # Reset all the variables used to store data
         self.copX = []
         self.copY = []
         self.raw = []
 
-        sound = StartTone(self)
-        sound.play()
-        sound.playingChanged.connect(self._protocol_helper)
+        self._protocol_helper()
 
     def _protocol_helper(self):
         # Start the protocol streaming
