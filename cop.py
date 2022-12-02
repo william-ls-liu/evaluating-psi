@@ -6,6 +6,7 @@ from USB6210 import DAQ
 import numpy as np
 from sounds import Countdown, StartTone
 import csv
+from datetime import datetime
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -46,7 +47,7 @@ class PlotWidget(QtWidgets.QWidget):
 
         # Initiate a timer for the streaming plot
         self.plot_timer = QtCore.QTimer(parent=self)
-        self.plot_timer.setInterval(33.33)  # ~15Hz since drawing new graphs is resource-intensive
+        self.plot_timer.setInterval(33.33)  # ~30Hz since drawing new graphs is resource-intensive
         self.plot_timer.timeout.connect(self.update_plot)
 
         # Initiate a timer for the protocol
@@ -133,6 +134,7 @@ class PlotWidget(QtWidgets.QWidget):
     def start_daq(self):
         """Create the DAQ task."""
         self.dev = DAQ('Dev1')
+        self.sample_rate = self.dev.get_sample_rate()
         self.dev.create_tasks('ai1:6', 'ai7:8')
         self.dev.start()
         self.task_exists = True
@@ -309,11 +311,30 @@ class PlotWidget(QtWidgets.QWidget):
 
         # If user selects Cancel or doesn't enter a filename don't save a file
         if fname[0] != '':
+            to_csv = self.create_export_file()
             file = open(fname[0], 'w+', newline='')
             with file:
                 write = csv.writer(file)
-                write.writerow(['Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz', 'EMG1', 'EMG2'])
-                write.writerows(self.raw)
+                write.writerows(to_csv)
+
+    def create_export_file(self):
+        """This method will format the raw data for export to csv."""
+        date_of_export = str(datetime.today())
+        raw = self.raw.copy()
+
+        export = [
+            ["Date of Export:", date_of_export],
+            ['Sample Rate:', self.sample_rate],
+            ['Fx (N)', 'Fy (N)', 'Fz (N)', 'Mx (N/m)', 'My (N/m)', 'Mz (N/m)', 'CoP X (m)', 'CoP Y (m)', 'EMG1', 'EMG2']
+        ]
+
+        for row in raw:
+            copX = (-1) * ((row[4] + (-0.040934 * row[0])) / row[2])
+            copY = ((row[3] - (-0.040934 * row[1])) / row[2])
+            new_row = [row[0], row[1], row[2], row[3], row[4], row[5], copX, copY, row[6], row[7]]
+            export.append(new_row)
+
+        return export
 
 
 app = QtWidgets.QApplication()
