@@ -6,6 +6,7 @@ from USB6210 import DAQ
 import numpy as np
 from sounds import Countdown
 from progress_widget import ProgressWidget
+from data_viewer import GraphWindow
 import csv
 from datetime import datetime
 
@@ -235,6 +236,10 @@ class PlotWidget(QtWidgets.QWidget):
         copY = (data[3] - (-0.040934 * data[1])) / data[2]
         self.copY.append(copY)
 
+        # Add Fz to the plot
+        self.Fz = self.Fz[1:]
+        self.Fz.append(data[2])
+
         # Add EMG data for the plot
         self.emg_soleus = self.emg_soleus[1:]
         self.emg_tib = self.emg_tib[1:]
@@ -338,6 +343,19 @@ class PlotWidget(QtWidgets.QWidget):
             with file:
                 write = csv.writer(file)
                 write.writerows(to_csv)
+
+        # Open the graph window
+        raw_as_array = np.array(self.raw)
+        self.gw = GraphWindow(
+            {
+                'CopX': self.copX,
+                'CopY': self.copY,
+                'Fz': raw_as_array[:, 2],
+                'EMG Soleus': raw_as_array[:, 6],
+                'EMG Tibialis': raw_as_array[:, 7]
+            }
+        )
+        self.gw.show()
 
     def create_export_file(self):
         """This method will format the raw data for export to csv."""
