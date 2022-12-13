@@ -29,7 +29,15 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.progress_widget)
 
         # Connect the status signal to the progress widget
-        self.pw.status_signal.connect(self.progress_widget.update_label)
+        self.pw.status_signal.connect(self.progress_widget.update_progress_label)
+
+        # Connect the enable stimulus signal to the plot widget
+        self.progress_widget.enable_stimulus_signal.connect(self.pw.set_stimulus_state)
+        self.pw.set_stimulus_state(self.progress_widget.enable_stimulus_checkbox.isChecked())
+
+        # Connect the threshold slider signal to set the APA threshold
+        self.progress_widget.threshold_slider.valueChanged.connect(self.pw.set_threshold_value)
+        self.pw.set_threshold_value(self.progress_widget.threshold_slider.value())  # Set the default value
 
         self.cw.setLayout(layout)
         self.setCentralWidget(self.cw)
@@ -248,10 +256,11 @@ class PlotWidget(QtWidgets.QWidget):
 
         if copX > self.cop_upper or copX < self.cop_lower:
             if not self.stim_triggered:
-                self.residual_timer.start()
-                self.dev.ttl()  # Trigger the TTL output
-                self.stim_triggered = True
-                self.status_signal.emit("APA detected. Stimulus was delivered.")
+                if self.enable_stimulus:
+                    self.residual_timer.start()
+                    self.dev.ttl()  # Trigger the TTL output
+                    self.stim_triggered = True
+                    self.status_signal.emit("APA detected. Stimulus was delivered.")
 
     def start_protocol(self):
         """Start the PSI collection protocol. Begin with 10s of quiet stance to capture baseline sway."""
@@ -301,7 +310,7 @@ class PlotWidget(QtWidgets.QWidget):
         self.status_signal.emit("Baseline Center of Pressure has been collected. Patient can now take a step.")
         origin = np.mean(self.copX)
         stdev = np.std(self.copX)
-        sd = 10 * stdev
+        sd = self.apa_threshold * stdev
 
         self.cop_upper = origin + sd
         self.cop_lower = origin - sd
@@ -375,6 +384,17 @@ class PlotWidget(QtWidgets.QWidget):
             export.append(new_row)
 
         return export
+
+    def set_stimulus_state(self, state):
+        """Connected to the checkbox in the progress widget which enables/disables the stimulus."""
+        self.enable_stimulus = state
+
+    def set_threshold_value(self, value):
+        """
+        Connected to the int slider in the progress widget to set the APA threshold.
+        APA threshold = value * standard deviation of baseline CoP
+        """
+        self.apa_threshold = value
 
 
 app = QtWidgets.QApplication()
