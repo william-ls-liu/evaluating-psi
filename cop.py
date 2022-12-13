@@ -59,7 +59,7 @@ class PlotWidget(QtWidgets.QWidget):
 
         # Initiate a timer for the streaming plot
         self.plot_timer = QtCore.QTimer(parent=self)
-        self.plot_timer.setInterval(33.33)  # ~30Hz since drawing new graphs is resource-intensive
+        self.plot_timer.setInterval(16.66)  # ~60Hz since drawing new graphs is resource-intensive
         self.plot_timer.timeout.connect(self.update_plot)
 
         # Initiate a timer for the protocol
@@ -69,7 +69,7 @@ class PlotWidget(QtWidgets.QWidget):
 
         # Initiate a timer for the final 5 s of the protocol
         self.residual_timer = QtCore.QTimer(parent=self)
-        self.residual_timer.setInterval(5000)
+        self.residual_timer.setInterval(10000)
         self.residual_timer.setSingleShot(True)
         self.residual_timer.timeout.connect(self.stop_protocol)
 
@@ -301,7 +301,7 @@ class PlotWidget(QtWidgets.QWidget):
         self.status_signal.emit("Baseline Center of Pressure has been collected. Patient can now take a step.")
         origin = np.mean(self.copX)
         stdev = np.std(self.copX)
-        sd = 5 * stdev
+        sd = 10 * stdev
 
         self.cop_upper = origin + sd
         self.cop_lower = origin - sd
@@ -380,4 +380,4 @@ class PlotWidget(QtWidgets.QWidget):
 app = QtWidgets.QApplication()
 window = MainWindow()
 window.show()
-app.exec_()
+app.exec()
