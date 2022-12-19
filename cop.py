@@ -75,12 +75,6 @@ class PlotWidget(QtWidgets.QWidget):
         self.protocol_timer.setInterval(0)
         self.protocol_timer.timeout.connect(self.protocol)
 
-        # Initiate a timer for the final 5 s of the protocol
-        self.residual_timer = QtCore.QTimer(parent=self)
-        self.residual_timer.setInterval(10000)
-        self.residual_timer.setSingleShot(True)
-        self.residual_timer.timeout.connect(self.stop_protocol)
-
         # Define buttons
         self.start_daq_btn = QtWidgets.QPushButton("Start DAQ", parent=self)
         self.start_daq_btn.clicked.connect(self.start_daq)
@@ -95,6 +89,10 @@ class PlotWidget(QtWidgets.QWidget):
 
         self.start_protocol_btn = QtWidgets.QPushButton("Start Protocol", parent=self)
         self.start_protocol_btn.clicked.connect(self.start_protocol)
+
+        self.stop_protocol_btn = QtWidgets.QPushButton("Stop Protocol", parent=self)
+        self.stop_protocol_btn.clicked.connect(self.stop_protocol)
+        self.stop_protocol_btn.setEnabled(False)
 
         # Define variables for storing data and plotting
         samples_to_show = 2000
@@ -116,13 +114,18 @@ class PlotWidget(QtWidgets.QWidget):
         # Initiate variable to store whether stimulus has been triggerd
         self.stim_triggered = False
 
+        # Set the layout for the buttons
+        self.btn_layout = QtWidgets.QGridLayout()
+        self.btn_layout.addWidget(self.start_daq_btn, 0, 0)
+        self.btn_layout.addWidget(self.start_stream_btn, 1, 0)
+        self.btn_layout.addWidget(self.stop_stream_btn, 2, 0)
+        self.btn_layout.addWidget(self.start_protocol_btn, 0, 1)
+        self.btn_layout.addWidget(self.stop_protocol_btn, 1, 1)
+
         # Set the layout
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.addWidget(self.plot_widget)
-        self.layout.addWidget(self.start_daq_btn)
-        self.layout.addWidget(self.start_stream_btn)
-        self.layout.addWidget(self.stop_stream_btn)
-        self.layout.addWidget(self.start_protocol_btn)
+        self.layout.addLayout(self.btn_layout)
         self.setLayout(self.layout)
 
     def build_subplots(self):
@@ -257,10 +260,10 @@ class PlotWidget(QtWidgets.QWidget):
         if copX > self.cop_upper or copX < self.cop_lower:
             if not self.stim_triggered:
                 if self.enable_stimulus:
-                    self.residual_timer.start()
                     self.dev.ttl()  # Trigger the TTL output
                     self.stim_triggered = True
                     self.status_signal.emit("APA detected. Stimulus was delivered.")
+                    self.stop_protocol_btn.setEnabled(True)
 
     def start_protocol(self):
         """Start the PSI collection protocol. Begin with 10s of quiet stance to capture baseline sway."""
@@ -337,6 +340,7 @@ class PlotWidget(QtWidgets.QWidget):
         self.stop()
         self.start_protocol_btn.setEnabled(True)
         self.stim_triggered = False
+        self.stop_protocol_btn.setEnabled(False)
 
         # Open a save file dialog window
         fname = QtWidgets.QFileDialog.getSaveFileName(
@@ -399,5 +403,6 @@ class PlotWidget(QtWidgets.QWidget):
 
 app = QtWidgets.QApplication()
 window = MainWindow()
+window.showMaximized()
 window.show()
 app.exec()
