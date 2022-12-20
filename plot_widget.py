@@ -1,7 +1,7 @@
 # Author: William Liu <liwi@ohsu.edu>
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout)
-import pyqtgraph as pg
+from pyqtgraph import GraphicsLayoutWidget
 
 
 class PlotWidget(QWidget):
@@ -16,7 +16,7 @@ class PlotWidget(QWidget):
         self.setLayout(layout)
 
 
-class Plots(pg.GraphicsLayoutWidget):
+class Plots(GraphicsLayoutWidget):
     """This widget represents the different graphs."""
     def __init__(self, parent):
         super().__init__(parent=parent)
