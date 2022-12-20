@@ -274,9 +274,9 @@ class PlotWidget(QtWidgets.QWidget):
         self.stop_stream_btn.setEnabled(False)
 
         # Reset all the variables used to store data
-        self.copX = []
-        self.copY = []
-        self.raw = []
+        self.copX.clear()
+        self.copY.clear()
+        self.raw.clear()
 
         # Ensure the lists to store the data are definitely empty
         if self.raw:
@@ -319,9 +319,9 @@ class PlotWidget(QtWidgets.QWidget):
         self.cop_lower = origin - sd
 
         # Reset all the variables used to store data
-        self.copX = []
-        self.copY = []
-        self.raw = []
+        self.copX.clear()
+        self.copY.clear()
+        self.raw.clear()
 
         self._protocol_helper()
 
