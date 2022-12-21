@@ -1,7 +1,7 @@
 # Author: William Liu <liwi@ohsu.edu>
 
 from USB6210 import DAQ
-from PySide6.QtCore import QObject, QTimer, Signal
+from PySide6.QtCore import QObject, QTimer, Signal, Slot
 
 
 class DataWorker(QObject):
@@ -19,17 +19,33 @@ class DataWorker(QObject):
         # Initialize the DAQ
         self.DAQ_device = DAQ('Dev1', rate=1)
         self.DAQ_device.create_tasks('ai1:6', 'ai7:8')
-        self.DAQ_device.start()
 
+        # Store the state of the task
+        self.task_is_running = False
+
+    @Slot()
     def get_data_from_daq(self):
         """Read 1 sample/channel from the DAQ."""
         self.data_signal.emit(self.DAQ_device.read())
 
+    @Slot()
     def start_sampling(self):
         """Start the sampling timer and begin acquiring data."""
-        print("start clicked")
-        self.sampling_timer.start()
+        if not self.task_is_running:
+            self.task_is_running = True
+            self.DAQ_device.start()
+            self.sampling_timer.start()
 
+    @Slot()
     def stop_sampling(self):
         """Stop the sampling timer."""
-        self.sampling_timer.stop()
+        if self.task_is_running:
+            self.DAQ_device.stop()
+            self.sampling_timer.stop()
+            self.task_is_running = False
+
+    def shutdown(self):
+        """This methods handles the termination of the DAQ processes."""
+        if self.task_is_running:
+            self.DAQ_device.stop()
+        self.DAQ_device.close()
