@@ -1,6 +1,7 @@
 # Author: William Liu <liwi@ohsu.edu>
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout)
+from PySide6.QtCore import Slot
 from pyqtgraph import GraphicsLayoutWidget
 
 
@@ -14,6 +15,14 @@ class PlotWidget(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(self.plots)
         self.setLayout(layout)
+
+    @Slot(list)
+    def update_plots(self, data):
+        """Receives data from the MainWindow and updates the plots."""
+        copx = data[0]
+        copy = data[1]
+        fz = data[2]
+        self.plots.update(copx, copy, fz)
 
 
 class Plots(GraphicsLayoutWidget):
@@ -31,3 +40,8 @@ class Plots(GraphicsLayoutWidget):
         # Create the vertical force graph
         self.fz_plot_item = self.addPlot(row=0, col=1, title="Vertical Force (N)")
         self.fz_plot_line = self.fz_plot_item.plot(x=[1, 2], y=[10, -30])
+
+    def update(self, copx, copy, fz):
+        """Update the graphs."""
+        self.cop_plot_line.setData(x=[copx[-1]], y=[copy[-1]])
+        self.fz_plot_line.setData(y=fz)
