@@ -44,8 +44,9 @@ class DataWorker(QObject):
             self.sampling_timer.stop()
             self.task_is_running = False
 
+    @Slot()
     def shutdown(self):
         """This methods handles the termination of the DAQ processes."""
         if self.task_is_running:
-            self.DAQ_device.stop()
+            self.stop_sampling()
         self.DAQ_device.close()
