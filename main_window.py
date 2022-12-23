@@ -9,6 +9,9 @@ from data_worker import DataWorker
 
 class MainWindow(QMainWindow):
     """This class represents the main window of the GUI."""
+
+    shutdown_signal = Signal()
+
     def __init__(self) -> None:
         super().__init__(parent=None)
 
@@ -35,6 +38,7 @@ class MainWindow(QMainWindow):
         self.control_bar.start_button_signal.connect(self.data_worker.start_sampling)
         self.control_bar.stop_button_signal.connect(self.data_worker.stop_sampling)
         self.data_worker.data_signal.connect(self.process_incoming_data)
+        self.shutdown_signal.connect(self.data_worker.shutdown)
 
         # Create a layout
         layout = QVBoxLayout()
@@ -47,9 +51,26 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Override of the default close method. Ensure the thread is shut down and the DAQ task is stopped."""
-        self.data_worker.shutdown()
-        self.data_worker_thread.exit()
+        # First, stop the QTimer that is active in the worker thread, and wait for it to actually stop
+        timer_active = self.data_worker.sampling_timer.isActive()
+        if timer_active:
+            self.shutdown_signal.emit()
+            while timer_active is True:  # This loops until the QTimer has fully stopped running
+                timer_active = self.data_worker.sampling_timer.isActive()
+
+        # Second, stop the QThread if necessary
+        thread_finished = self.data_worker_thread.isFinished()
+        if thread_finished is False:
+            self.data_worker_thread.quit()
+            while thread_finished is False:  # Wait until the QThread has fully stopped running
+                thread_finished = self.data_worker_thread.isFinished()
+
         event.accept()
+
+    @Slot(bool)
+    def get_shutdown_status(self, status):
+        self.ready_for_shutdown = status
+        self.close()
 
     @Slot(list)
     def process_incoming_data(self, data):
