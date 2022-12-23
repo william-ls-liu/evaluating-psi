@@ -13,11 +13,11 @@ class DataWorker(QObject):
 
         # Set-up the timer to sample from the DAQ
         self.sampling_timer = QTimer(parent=self)
-        self.sampling_timer.setInterval(1000)
+        self.sampling_timer.setInterval(0)
         self.sampling_timer.timeout.connect(self.get_data_from_daq)
 
         # Initialize the DAQ
-        self.DAQ_device = DAQ('Dev1', rate=1)
+        self.DAQ_device = DAQ('Dev1', rate=1000)
         self.DAQ_device.create_tasks('ai1:6', 'ai7:8')
 
         # Store the state of the task
@@ -26,7 +26,8 @@ class DataWorker(QObject):
     @Slot()
     def get_data_from_daq(self):
         """Read 1 sample/channel from the DAQ."""
-        self.data_signal.emit(self.DAQ_device.read())
+        data = self.DAQ_device.read()
+        self.data_signal.emit(data)
 
     @Slot()
     def start_sampling(self):
