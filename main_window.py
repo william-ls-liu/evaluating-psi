@@ -1,6 +1,6 @@
 # Author: William Liu <liwi@ohsu.edu>
 
-from PySide6.QtCore import Qt, QThread, Signal, Slot
+from PySide6.QtCore import Qt, QThread, Signal, Slot, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QApplication
 from plot_widget import PlotWidget
@@ -10,7 +10,8 @@ from data_worker import DataWorker
 class MainWindow(QMainWindow):
     """This class represents the main window of the GUI."""
 
-    shutdown_signal = Signal()
+    shutdown_signal = Signal()  # Signal to be emitted when the window is closed
+    data_to_plot_widget = Signal(list)  # Signal to send data to the plot widget
 
     def __init__(self) -> None:
         super().__init__(parent=None)
@@ -24,8 +25,11 @@ class MainWindow(QMainWindow):
         # Add the control buttons
         self.control_bar = ControlBar(self)
 
-        # Add plot widget
+        # Add plot widget and timer
         self.plot_widget = PlotWidget(self)
+        self.plot_timer = QTimer(parent=self)
+        self.plot_timer.setInterval(33.33)
+        self.plot_timer.timeout.connect(self.send_data_to_plot_widget)
 
         # Create the DAQ worker
         self.data_worker = DataWorker()
@@ -36,8 +40,11 @@ class MainWindow(QMainWindow):
 
         # Connect the signals between the control bar and the worker
         self.control_bar.start_button_signal.connect(self.data_worker.start_sampling)
+        self.control_bar.start_button_signal.connect(self.plot_timer.start)
         self.control_bar.stop_button_signal.connect(self.data_worker.stop_sampling)
+        self.control_bar.stop_button_signal.connect(self.plot_timer.stop)
         self.data_worker.data_signal.connect(self.process_incoming_data)
+        self.data_to_plot_widget.connect(self.plot_widget.update_plots)
         self.shutdown_signal.connect(self.data_worker.shutdown)
 
         # Create a layout
@@ -48,6 +55,14 @@ class MainWindow(QMainWindow):
 
         self.central_widget.setLayout(layout)
         self.setCentralWidget(self.central_widget)
+
+        # Initiate variables to store incoming data from DataWorker
+        samples_to_show = 2000
+        self.copx = [0 for i in range(samples_to_show)]
+        self.copy = [0 for i in range(samples_to_show)]
+        self.fz = [0 for i in range(samples_to_show)]
+        self.emg_tibialis = [0 for i in range(samples_to_show)]
+        self.emb_soleus = [0 for i in range(samples_to_show)]
 
     def closeEvent(self, event):
         """Override of the default close method. Ensure the thread is shut down and the DAQ task is stopped."""
@@ -75,7 +90,19 @@ class MainWindow(QMainWindow):
     @Slot(list)
     def process_incoming_data(self, data):
         """Slot to receive the data from the DataWorker and process it for use."""
-        print(data)
+        copx = -1 * ((data[4] + (-0.040934 * data[0])) / data[2])
+        copy = (data[3] - (-0.040934 * data[1])) / data[2]
+        self.copx = self.copx[1:]
+        self.copx.append(copx)
+        self.copy = self.copy[1:]
+        self.copy.append(copy)
+
+        self.fz = self.fz[1:]
+        self.fz.append(data[2])
+
+    def send_data_to_plot_widget(self):
+        """Emit data to PlotWidget. Sends data much slower than it is acquired as drawing graphics is resource heavy."""
+        self.data_to_plot_widget.emit([self.copx, self.copy, self.fz])
 
 
 class ControlBar(QWidget):
