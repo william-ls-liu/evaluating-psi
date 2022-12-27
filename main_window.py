@@ -5,6 +5,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QApplication
 from plot_widget import PlotWidget
 from data_worker import DataWorker
+from protocol_widget import ProtocolWidget
 
 
 class MainWindow(QMainWindow):
@@ -53,11 +54,18 @@ class MainWindow(QMainWindow):
         # Connect the closeEvent signal to the worker to ensure safe termination of timers/threads
         self.shutdown_signal.connect(self.data_worker.shutdown)
 
-        # Create a layout
-        layout = QVBoxLayout()
-        layout.addWidget(self.control_bar)
-        layout.addWidget(self.plot_widget)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        # Create the protocol widget
+        self.protocol_widget = ProtocolWidget(self)
+
+        # Create the layouts
+        left_layout = QVBoxLayout()
+        left_layout.addWidget(self.control_bar)
+        left_layout.addWidget(self.plot_widget)
+        left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        layout = QHBoxLayout()
+        layout.addLayout(left_layout)
+        layout.addWidget(self.protocol_widget)
 
         self.central_widget.setLayout(layout)
         self.setCentralWidget(self.central_widget)
