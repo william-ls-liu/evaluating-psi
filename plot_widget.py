@@ -37,21 +37,25 @@ class Plots(GraphicsLayoutWidget):
         self.cop_plot_item.setRange(xRange=(-0.254, 0.254), yRange=(-0.254, 0.254))
         self.cop_plot_item.disableAutoRange(axis='xy')
         self.cop_plot_item.invertX(b=True)  # AMTI axis definitions have +X on the left side of the platform
+        self.cop_plot_item.hideButtons()  # Hide the auto-scale button
         self.cop_plot_line = self.cop_plot_item.plot(x=[0], y=[0], pen=None, symbol='o')
 
         # Create the vertical force graph
-        self.fz_plot_item = self.addPlot(row=0, col=1, title="Vertical Force (N)")
+        self.fz_plot_item = self.addPlot(row=1, col=0, title="Vertical Force (N)")
+        self.fz_plot_item.hideAxis('bottom')
         self.fz_plot_line = self.fz_plot_item.plot(x=[0], y=[0])
 
         # Create the EMG plots
-        self.emg_tibialis_plot_item = self.addPlot(row=1, col=0, title="EMG: Tibialis")
+        self.emg_tibialis_plot_item = self.addPlot(row=0, col=1, title="EMG: Tibialis")
         self.emg_tibialis_plot_item.setRange(yRange=(-2.5, 2.5))
         self.emg_tibialis_plot_item.disableAutoRange(axis='y')
+        self.emg_tibialis_plot_item.hideAxis('bottom')
         self.emg_tibialis_plot_line = self.emg_tibialis_plot_item.plot(x=[0], y=[0])
 
         self.emg_soleus_plot_item = self.addPlot(row=1, col=1, title="EMG: Soleus")
         self.emg_soleus_plot_item.setRange(yRange=(-2.5, 2.5))
         self.emg_soleus_plot_item.disableAutoRange(axis='y')
+        self.emg_soleus_plot_item.hideAxis('bottom')
         self.emg_soleus_plot_line = self.emg_soleus_plot_item.plot(x=[0], y=[0])
 
     def update(self, copx, copy, fz, emg_tibialis, emg_soleus):
