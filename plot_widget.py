@@ -22,7 +22,9 @@ class PlotWidget(QWidget):
         copx = data[0]
         copy = data[1]
         fz = data[2]
-        self.plots.update(copx, copy, fz)
+        emg_tibialis = data[3]
+        emg_soleus = data[4]
+        self.plots.update(copx, copy, fz, emg_tibialis, emg_soleus)
 
 
 class Plots(GraphicsLayoutWidget):
@@ -39,9 +41,22 @@ class Plots(GraphicsLayoutWidget):
 
         # Create the vertical force graph
         self.fz_plot_item = self.addPlot(row=0, col=1, title="Vertical Force (N)")
-        self.fz_plot_line = self.fz_plot_item.plot(x=[1, 2], y=[10, -30])
+        self.fz_plot_line = self.fz_plot_item.plot(x=[0], y=[0])
 
-    def update(self, copx, copy, fz):
+        # Create the EMG plots
+        self.emg_tibialis_plot_item = self.addPlot(row=1, col=0, title="EMG: Tibialis")
+        self.emg_tibialis_plot_item.setRange(yRange=(-2.5, 2.5))
+        self.emg_tibialis_plot_item.disableAutoRange(axis='y')
+        self.emg_tibialis_plot_line = self.emg_tibialis_plot_item.plot(x=[0], y=[0])
+
+        self.emg_soleus_plot_item = self.addPlot(row=1, col=1, title="EMG: Soleus")
+        self.emg_soleus_plot_item.setRange(yRange=(-2.5, 2.5))
+        self.emg_soleus_plot_item.disableAutoRange(axis='y')
+        self.emg_soleus_plot_line = self.emg_soleus_plot_item.plot(x=[0], y=[0])
+
+    def update(self, copx, copy, fz, emg_tibialis, emg_soleus):
         """Update the graphs."""
         self.cop_plot_line.setData(x=[copx[-1]], y=[copy[-1]])
         self.fz_plot_line.setData(y=fz)
+        self.emg_tibialis_plot_line.setData(y=emg_tibialis)
+        self.emg_soleus_plot_line.setData(y=emg_soleus)
