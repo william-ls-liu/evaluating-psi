@@ -1,19 +1,17 @@
 # Author: William Liu <liwi@ohsu.edu>
 
-from PySide6.QtCore import Qt, QThread, Signal, Slot, QTimer
+from PySide6.QtCore import Qt, QThread, Signal, Slot
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QApplication
 from plot_widget import PlotWidget
 from data_worker import DataWorker
 from protocol_widget import ProtocolWidget
-import numpy as np
 
 
 class MainWindow(QMainWindow):
     """This class represents the main window of the GUI."""
 
     shutdown_signal = Signal()  # Signal to be emitted when the window is closed
-    data_to_plot_widget = Signal(list)  # Signal to send data to the plot widget
 
     def __init__(self) -> None:
         super().__init__(parent=None)
@@ -27,11 +25,8 @@ class MainWindow(QMainWindow):
         # Add the control buttons
         self.control_bar = ControlBar(self)
 
-        # Add plot widget and timer
+        # Add plot widget
         self.plot_widget = PlotWidget(self)
-        self.plot_timer = QTimer(parent=self)
-        self.plot_timer.setInterval(33.33)
-        self.plot_timer.timeout.connect(self.send_data_to_plot_widget)
 
         # Create the DAQ worker
         self.data_worker = DataWorker()
@@ -42,15 +37,14 @@ class MainWindow(QMainWindow):
 
         # Connect the start button to the worker and the plot timer
         self.control_bar.start_button_signal.connect(self.data_worker.start_sampling)
-        self.control_bar.start_button_signal.connect(self.plot_timer.start)
+        self.control_bar.start_button_signal.connect(self.plot_widget.start_timer)
 
         # Connect the stop button to the worker and the plot timer
         self.control_bar.stop_button_signal.connect(self.data_worker.stop_sampling)
-        self.control_bar.stop_button_signal.connect(self.plot_timer.stop)
+        self.control_bar.stop_button_signal.connect(self.plot_widget.stop_timer)
 
         # Connect the data from the worker to the plot widget
-        self.data_worker.data_signal.connect(self.process_incoming_data)
-        self.data_to_plot_widget.connect(self.plot_widget.update_plots)
+        self.data_worker.data_signal.connect(self.plot_widget.process_data_from_worker)
 
         # Connect the closeEvent signal to the worker to ensure safe termination of timers/threads
         self.shutdown_signal.connect(self.data_worker.shutdown)
@@ -70,14 +64,6 @@ class MainWindow(QMainWindow):
 
         self.central_widget.setLayout(layout)
         self.setCentralWidget(self.central_widget)
-
-        # Initiate variables to store incoming data from DataWorker
-        samples_to_show = 2000
-        self.copx = [0 for i in range(samples_to_show)]
-        self.copy = [0 for i in range(samples_to_show)]
-        self.fz = [0 for i in range(samples_to_show)]
-        self.emg_tibialis = [0 for i in range(samples_to_show)]
-        self.emg_soleus = [0 for i in range(samples_to_show)]
 
     def closeEvent(self, event):
         """Override of the default close method. Ensure the thread is shut down and the DAQ task is stopped."""
@@ -101,26 +87,6 @@ class MainWindow(QMainWindow):
     def get_shutdown_status(self, status):
         self.ready_for_shutdown = status
         self.close()
-
-    @Slot(np.ndarray)
-    def process_incoming_data(self, data):
-        """Slot to receive the data from the DataWorker and process it for use."""
-        self.copx = self.copx[1:]
-        self.copx.append(data[8])
-        self.copy = self.copy[1:]
-        self.copy.append(data[9])
-
-        self.fz = self.fz[1:]
-        self.fz.append(data[2])
-
-        self.emg_tibialis = self.emg_tibialis[1:]
-        self.emg_tibialis.append(data[6])
-        self.emg_soleus = self.emg_soleus[1:]
-        self.emg_soleus.append(data[7])
-
-    def send_data_to_plot_widget(self):
-        """Emit data to PlotWidget. Sends data much slower than it is acquired as drawing graphics is resource heavy."""
-        self.data_to_plot_widget.emit([self.copx, self.copy, self.fz, self.emg_tibialis, self.emg_soleus])
 
 
 class ControlBar(QWidget):
