@@ -1,8 +1,9 @@
 # Author: William Liu <liwi@ohsu.edu>
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout)
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot, QTimer
 from pyqtgraph import GraphicsLayoutWidget
+import numpy as np
 
 
 class PlotWidget(QWidget):
@@ -10,21 +11,53 @@ class PlotWidget(QWidget):
     def __init__(self, parent) -> None:
         super().__init__(parent=parent)
 
+        # Initiate the pyqygraph widget
         self.plots = Plots(self)
+
+        # Initiate the timer that updates the graphs
+        self.timer = QTimer(parent=self)
+        self.timer.setInterval(33.33)  # ~30Hz, the faster the more resource intensive the app
+        self.timer.timeout.connect(self.update_plots)
+
+        # Initiate variables to store incoming data from DataWorker
+        samples_to_show = 2000
+        self.copx = [0 for i in range(samples_to_show)]
+        self.copy = [0 for i in range(samples_to_show)]
+        self.fz = [0 for i in range(samples_to_show)]
+        self.emg_tibialis = [0 for i in range(samples_to_show)]
+        self.emg_soleus = [0 for i in range(samples_to_show)]
 
         layout = QVBoxLayout()
         layout.addWidget(self.plots)
         self.setLayout(layout)
 
-    @Slot(list)
-    def update_plots(self, data):
-        """Receives data from the MainWindow and updates the plots."""
-        copx = data[0]
-        copy = data[1]
-        fz = data[2]
-        emg_tibialis = data[3]
-        emg_soleus = data[4]
-        self.plots.update(copx, copy, fz, emg_tibialis, emg_soleus)
+    @Slot(np.ndarray)
+    def process_data_from_worker(self, data):
+        """Slot to receive the data from the DataWorker and process it for use."""
+        self.copx = self.copx[1:]
+        self.copx.append(data[8])
+        self.copy = self.copy[1:]
+        self.copy.append(data[9])
+
+        self.fz = self.fz[1:]
+        self.fz.append(data[2])
+
+        self.emg_tibialis = self.emg_tibialis[1:]
+        self.emg_tibialis.append(data[6])
+        self.emg_soleus = self.emg_soleus[1:]
+        self.emg_soleus.append(data[7])
+
+    def update_plots(self):
+        """Update the graphs with new data."""
+        self.plots.update(self.copx, self.copy, self.fz, self.emg_tibialis, self.emg_soleus)
+
+    def start_timer(self):
+        """Start the QTimer."""
+        self.timer.start()
+
+    def stop_timer(self):
+        """Stop the QTimer."""
+        self.timer.stop()
 
 
 class Plots(GraphicsLayoutWidget):
