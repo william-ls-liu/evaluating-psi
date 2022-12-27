@@ -2,11 +2,12 @@
 
 from USB6210 import DAQ
 from PySide6.QtCore import QObject, QTimer, Signal, Slot
+import numpy as np
 
 
 class DataWorker(QObject):
     """This is a worker to collect data from the NI DAQ and emit the raw data as a signal."""
-    data_signal = Signal(list)  # Signal to hold the data from DAQ
+    data_signal = Signal(np.ndarray)  # Signal to hold the data from DAQ
 
     def __init__(self):
         super().__init__()
@@ -25,9 +26,12 @@ class DataWorker(QObject):
 
     @Slot()
     def get_data_from_daq(self):
-        """Read 1 sample/channel from the DAQ."""
+        """Read 1 sample/channel from the DAQ. Calculate the CoP and add that to the array that is emitted."""
         data = self.DAQ_device.read()
-        self.data_signal.emit(data)
+        copx = -1 * ((data[4] + (-0.040934 * data[0])) / data[2])
+        copy = (data[3] - (-0.040934 * data[1])) / data[2]
+        data_to_emit = np.append(data, [copx, copy])
+        self.data_signal.emit(data_to_emit)
 
     @Slot()
     def start_sampling(self):
