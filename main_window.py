@@ -38,13 +38,19 @@ class MainWindow(QMainWindow):
         self.data_worker_thread.start()
         self.data_worker_ready_for_shutdown = False  # Important for handling termination of the worker thread
 
-        # Connect the signals between the control bar and the worker
+        # Connect the start button to the worker and the plot timer
         self.control_bar.start_button_signal.connect(self.data_worker.start_sampling)
         self.control_bar.start_button_signal.connect(self.plot_timer.start)
+
+        # Connect the stop button to the worker and the plot timer
         self.control_bar.stop_button_signal.connect(self.data_worker.stop_sampling)
         self.control_bar.stop_button_signal.connect(self.plot_timer.stop)
+
+        # Connect the data from the worker to the plot widget
         self.data_worker.data_signal.connect(self.process_incoming_data)
         self.data_to_plot_widget.connect(self.plot_widget.update_plots)
+
+        # Connect the closeEvent signal to the worker to ensure safe termination of timers/threads
         self.shutdown_signal.connect(self.data_worker.shutdown)
 
         # Create a layout
@@ -62,7 +68,7 @@ class MainWindow(QMainWindow):
         self.copy = [0 for i in range(samples_to_show)]
         self.fz = [0 for i in range(samples_to_show)]
         self.emg_tibialis = [0 for i in range(samples_to_show)]
-        self.emb_soleus = [0 for i in range(samples_to_show)]
+        self.emg_soleus = [0 for i in range(samples_to_show)]
 
     def closeEvent(self, event):
         """Override of the default close method. Ensure the thread is shut down and the DAQ task is stopped."""
@@ -100,9 +106,14 @@ class MainWindow(QMainWindow):
         self.fz = self.fz[1:]
         self.fz.append(data[2])
 
+        self.emg_tibialis = self.emg_tibialis[1:]
+        self.emg_tibialis.append(data[6])
+        self.emg_soleus = self.emg_soleus[1:]
+        self.emg_soleus.append(data[7])
+
     def send_data_to_plot_widget(self):
         """Emit data to PlotWidget. Sends data much slower than it is acquired as drawing graphics is resource heavy."""
-        self.data_to_plot_widget.emit([self.copx, self.copy, self.fz])
+        self.data_to_plot_widget.emit([self.copx, self.copy, self.fz, self.emg_tibialis, self.emg_soleus])
 
 
 class ControlBar(QWidget):
