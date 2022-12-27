@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QP
 from plot_widget import PlotWidget
 from data_worker import DataWorker
 from protocol_widget import ProtocolWidget
+import numpy as np
 
 
 class MainWindow(QMainWindow):
@@ -101,15 +102,13 @@ class MainWindow(QMainWindow):
         self.ready_for_shutdown = status
         self.close()
 
-    @Slot(list)
+    @Slot(np.ndarray)
     def process_incoming_data(self, data):
         """Slot to receive the data from the DataWorker and process it for use."""
-        copx = -1 * ((data[4] + (-0.040934 * data[0])) / data[2])
-        copy = (data[3] - (-0.040934 * data[1])) / data[2]
         self.copx = self.copx[1:]
-        self.copx.append(copx)
+        self.copx.append(data[8])
         self.copy = self.copy[1:]
-        self.copy.append(copy)
+        self.copy.append(data[9])
 
         self.fz = self.fz[1:]
         self.fz.append(data[2])
