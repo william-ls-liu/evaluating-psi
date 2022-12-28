@@ -2,7 +2,7 @@
 
 from PySide6.QtCore import Qt, QThread, Signal, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QApplication
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QApplication, QMessageBox
 from plot_widget import PlotWidget
 from data_worker import DataWorker
 from protocol_widget import ProtocolWidget
@@ -52,10 +52,18 @@ class MainWindow(QMainWindow):
         # Connect the data from the worker to the plot widget
         self.data_worker.data_signal.connect(self.plot_widget.process_data_from_worker)
 
-        # Connect baseline button on the protocol widget
+        # Connect start baseline button on the protocol widget
+        self.protocol_widget.start_baseline_button_signal.connect(self.start_baseline_clicked)
+
+        # Connect collect baseline button on the protocol widget
         self.protocol_widget.collect_baseline_button_signal.connect(self.connect_data_to_protocol_widget)
         self.protocol_widget.collect_baseline_button_signal.connect(self.data_worker.start_sampling)
         self.protocol_widget.collect_baseline_button_signal.connect(self.plot_widget.start_timer)
+
+        # Connect the finish baseline button on the protocol widget
+        self.protocol_widget.finish_baseline_button_signal.connect(self.disconnect_data_from_protocol_widget)
+        self.protocol_widget.finish_baseline_button_signal.connect(self.data_worker.stop_sampling)
+        self.protocol_widget.finish_baseline_button_signal.connect(self.plot_widget.stop_timer)
 
         # Connect the closeEvent signal to the worker to ensure safe termination of timers/threads
         self.shutdown_signal.connect(self.data_worker.shutdown)
@@ -96,8 +104,26 @@ class MainWindow(QMainWindow):
         self.ready_for_shutdown = status
         self.close()
 
+    @Slot()
+    def start_baseline_clicked(self):
+        message_box = QMessageBox(self)
+        message_box.setWindowTitle("Attention!")
+        message_box.setText(
+            "Instruct patient to step off the platform,\n"
+            "then hit the Auto-Zero button on the amplifier.\n"
+            "When you have done this click Ok.")
+        message_box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+
+        button = message_box.exec()
+
+        if button == QMessageBox.Ok:
+            print("OK")
+
     def connect_data_to_protocol_widget(self):
         self.data_worker.data_signal.connect(self.protocol_widget.receive_data)
+
+    def disconnect_data_from_protocol_widget(self):
+        self.data_worker.data_signal.disconnect(self.protocol_widget.receive_data)
 
 
 class ControlBar(QWidget):
