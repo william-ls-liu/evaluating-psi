@@ -28,6 +28,9 @@ class MainWindow(QMainWindow):
         # Add plot widget
         self.plot_widget = PlotWidget(self)
 
+        # Create the protocol widget
+        self.protocol_widget = ProtocolWidget(self)
+
         # Create the DAQ worker
         self.data_worker = DataWorker()
         self.data_worker_thread = QThread()
@@ -43,14 +46,19 @@ class MainWindow(QMainWindow):
         self.control_bar.stop_button_signal.connect(self.data_worker.stop_sampling)
         self.control_bar.stop_button_signal.connect(self.plot_widget.stop_timer)
 
+        # Connect the record button to the protocol buttons
+        self.control_bar.record_button_signal.connect(self.protocol_widget.toggle_collect_baseline_button)
+
         # Connect the data from the worker to the plot widget
         self.data_worker.data_signal.connect(self.plot_widget.process_data_from_worker)
 
+        # Connect baseline button on the protocol widget
+        self.protocol_widget.collect_baseline_button_signal.connect(self.connect_data_to_protocol_widget)
+        self.protocol_widget.collect_baseline_button_signal.connect(self.data_worker.start_sampling)
+        self.protocol_widget.collect_baseline_button_signal.connect(self.plot_widget.start_timer)
+
         # Connect the closeEvent signal to the worker to ensure safe termination of timers/threads
         self.shutdown_signal.connect(self.data_worker.shutdown)
-
-        # Create the protocol widget
-        self.protocol_widget = ProtocolWidget(self)
 
         # Create the layouts
         left_layout = QVBoxLayout()
@@ -88,12 +96,15 @@ class MainWindow(QMainWindow):
         self.ready_for_shutdown = status
         self.close()
 
+    def connect_data_to_protocol_widget(self):
+        self.data_worker.data_signal.connect(self.protocol_widget.receive_data)
+
 
 class ControlBar(QWidget):
     """This is the toolbar that holds the buttons that control the software."""
     stop_button_signal = Signal()
     start_button_signal = Signal()
-    record_button_signal = Signal()
+    record_button_signal = Signal(bool)
 
     def __init__(self, parent) -> None:
         super().__init__(parent=parent)
@@ -102,7 +113,8 @@ class ControlBar(QWidget):
         self.start_button = QPushButton(parent=self, icon=QIcon("icons/16/131.png"))
         self.start_button.clicked.connect(self.start_button_clicked)
         self.record_button = QPushButton(parent=self, icon=QIcon("icons/16/151.png"))
-        self.record_button.clicked.connect(self.record_button_clicked)
+        self.record_button.setCheckable(True)
+        self.record_button.toggled.connect(self.record_button_clicked)
 
         layout = QHBoxLayout()
         layout.addWidget(self.stop_button)
@@ -121,21 +133,13 @@ class ControlBar(QWidget):
         self.start_button_signal.emit()
         self.record_button.setEnabled(False)
 
-    def record_button_clicked(self):
+    def record_button_clicked(self, check_state):
         """Emit the record signal when the button is clicked."""
-        # Get state of the start and stop buttons
-        start_state = self.start_button.isEnabled()
-        stop_state = self.stop_button.isEnabled()
-        if start_state is True and stop_state is True:
-            self.start_button.setDisabled(True)
-            self.stop_button.setDisabled(True)
-        elif start_state is False and stop_state is False:
-            self.start_button.setEnabled(True)
-            self.stop_button.setEnabled(True)
-        else:
-            raise AttributeError("Start state and stop state are not the same.")
+        # Change the state of the start and stop buttons based on if the record button is checked
+        self.start_button.setDisabled(self.record_button.isChecked())
+        self.stop_button.setDisabled(self.record_button.isChecked())
 
-        self.record_button_signal.emit()
+        self.record_button_signal.emit(check_state)
 
 
 app = QApplication()
