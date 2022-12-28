@@ -114,13 +114,27 @@ class ControlBar(QWidget):
     def stop_button_clicked(self):
         """Emit the stop signal when the button is clicked."""
         self.stop_button_signal.emit()
+        self.record_button.setEnabled(True)
 
     def start_button_clicked(self):
         """Emit the start signal when the button is clicked."""
         self.start_button_signal.emit()
+        self.record_button.setEnabled(False)
 
     def record_button_clicked(self):
         """Emit the record signal when the button is clicked."""
+        # Get state of the start and stop buttons
+        start_state = self.start_button.isEnabled()
+        stop_state = self.stop_button.isEnabled()
+        if start_state is True and stop_state is True:
+            self.start_button.setDisabled(True)
+            self.stop_button.setDisabled(True)
+        elif start_state is False and stop_state is False:
+            self.start_button.setEnabled(True)
+            self.stop_button.setEnabled(True)
+        else:
+            raise AttributeError("Start state and stop state are not the same.")
+
         self.record_button_signal.emit()
 
 
