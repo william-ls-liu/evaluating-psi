@@ -23,7 +23,7 @@ class GraphDialog(QDialog):
 
         # Create the graph
         self.figure = MplCanvas()
-        self.figure.cop_graph.plot([row[8] for row in data])
+        self.figure.cop_graph.plot(data)
         self.figure.cop_graph.set_title("APA")
 
         # Add the navigation toolbar
