@@ -18,10 +18,16 @@ class ProtocolWidget(QWidget):
         super().__init__(parent=parent)
 
         # Create a heading for the Widget
-        self.progress_label = QLabel()
+        self.progress_label = QLabel(parent=self)
         self.progress_label.setText("PSI Protocol Collection Status")
         self.progress_label.setFont(QFont("Arial", 16, QFont.Bold))
         self.progress_label.setWordWrap(True)
+
+        # Create a label to keep track of the number of baseline trials
+        self.baseline_trial_counter = QLabel(parent=self)
+        self.baseline_trial_counter.setText("Number of baseline trials collected: 0")
+        self.baseline_trial_counter.setFont(QFont("Arial", 14))
+        self.baseline_trial_counter.setWordWrap(True)
 
         # Create buttons for collecting baseline APA
         self.start_baseline_button = QPushButton(parent=self, text="Start baseline collection")
@@ -54,6 +60,7 @@ class ProtocolWidget(QWidget):
         # Create the layout
         layout = QVBoxLayout()
         layout.addWidget(self.progress_label)
+        layout.addWidget(self.baseline_trial_counter)
         layout.addWidget(self.start_baseline_button)
         layout.addWidget(self.cancel_baseline_button)
         layout.addWidget(self.collect_baseline_button)
@@ -96,6 +103,9 @@ class ProtocolWidget(QWidget):
             self.cancel_baseline_button.setEnabled(False)
             self.collect_baseline_button.setEnabled(False)
 
+            # Reset the counter
+            self.baseline_trial_counter.setText("Number of baseline trials collected: 0")
+
     @Slot()
     def collect_baseline_button_clicked(self):
         self.collect_baseline_button_signal.emit()
@@ -129,6 +139,8 @@ class ProtocolWidget(QWidget):
             number_of_baseline_trials = len(self.baseline_data)
             # Save a copy of the temporary storage list, since clear() on that list will affect references as well
             self.baseline_data[f"trial {number_of_baseline_trials + 1}"] = self.temporary_data_storage.copy()
+            # Update the counter to display number of trials collected
+            self.baseline_trial_counter.setText(f"Number of baseline trials collected: {number_of_baseline_trials + 1}")
 
         self.temporary_data_storage.clear()
 
