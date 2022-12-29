@@ -1,6 +1,6 @@
 # Author: William Liu <liwi@ohsu.edu>
 
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QMessageBox
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Slot, Signal
 from baseline_graph_viewer import GraphDialog
@@ -28,6 +28,10 @@ class ProtocolWidget(QWidget):
         self.start_baseline_button.setEnabled(False)
         self.start_baseline_button.clicked.connect(self.start_baseline_button_clicked)
 
+        self.cancel_baseline_button = QPushButton(parent=self, text="Cancel baseline collection")
+        self.cancel_baseline_button.setEnabled(False)
+        self.cancel_baseline_button.clicked.connect(self.cancel_baseline_button_clicked)
+
         self.collect_baseline_button = QPushButton(parent=self, text="Collect baseline step")
         self.collect_baseline_button.setEnabled(False)
         self.collect_baseline_button.clicked.connect(self.collect_baseline_button_clicked)
@@ -51,6 +55,7 @@ class ProtocolWidget(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(self.progress_label)
         layout.addWidget(self.start_baseline_button)
+        layout.addWidget(self.cancel_baseline_button)
         layout.addWidget(self.collect_baseline_button)
         layout.addWidget(self.finish_baseline_button)
         layout.addWidget(self.start_trial_button)
@@ -59,17 +64,48 @@ class ProtocolWidget(QWidget):
         self.setLayout(layout)
         self.setFixedWidth(300)
 
+    @Slot()
     def start_baseline_button_clicked(self):
         self.start_baseline_button_signal.emit()
+        self.cancel_baseline_button.setEnabled(True)
 
+    @Slot()
+    def cancel_baseline_button_clicked(self):
+        message_box = QMessageBox.warning(
+            self,
+            "Warning!",
+            "Are you sure you want to cancel the baseline collection?\n"
+            "You will lose all previously collect baseline trials.",
+            buttons=QMessageBox.No | QMessageBox.Yes,
+            defaultButton=QMessageBox.No
+        )
+
+        if message_box == QMessageBox.Yes:
+            # If the cancel button is pressed during a collection then emit the same signal
+            # that the finish button does to disconnect the DataWorker from this widget
+            if self.finish_baseline_button.isEnabled():
+                self.finish_baseline_button_signal.emit()
+                self.finish_baseline_button.setEnabled(False)
+
+            # Delete all the previously collected trials and any temporary data that has been stored
+            self.baseline_data.clear()
+            self.temporary_data_storage.clear()
+
+            # Disable the cancle button and re-enable the start button
+            self.start_baseline_button.setEnabled(True)
+            self.cancel_baseline_button.setEnabled(False)
+            self.collect_baseline_button.setEnabled(False)
+
+    @Slot()
     def collect_baseline_button_clicked(self):
         self.collect_baseline_button_signal.emit()
         self.finish_baseline_button.setEnabled(True)
         self.collect_baseline_button.setEnabled(False)
 
+    @Slot()
     def finish_baseline_button_clicked(self):
         self.finish_baseline_button_signal.emit()
-        self.start_baseline_button.setEnabled(True)
+        self.collect_baseline_button.setEnabled(True)
         self.finish_baseline_button.setEnabled(False)
 
         # Open the Graph Dialog
@@ -109,6 +145,7 @@ class ProtocolWidget(QWidget):
     @Slot(np.ndarray)
     def receive_data(self, data: np.ndarray):
         self.temporary_data_storage.append(data)
+        print(data)
 
     @Slot()
     def ready_to_start_baseline(self):
