@@ -12,6 +12,7 @@ class MainWindow(QMainWindow):
     """This class represents the main window of the GUI."""
 
     shutdown_signal = Signal()  # Signal to be emitted when the window is closed
+    ready_to_collect_baseline_signal = Signal()
 
     def __init__(self) -> None:
         super().__init__(parent=None)
@@ -65,6 +66,9 @@ class MainWindow(QMainWindow):
         self.protocol_widget.finish_baseline_button_signal.connect(self.data_worker.stop_sampling)
         self.protocol_widget.finish_baseline_button_signal.connect(self.plot_widget.stop_timer)
 
+        # Connect ready for baseline signal to protocol widget
+        self.ready_to_collect_baseline_signal.connect(self.protocol_widget.ready_to_start_baseline)
+
         # Connect the closeEvent signal to the worker to ensure safe termination of timers/threads
         self.shutdown_signal.connect(self.data_worker.shutdown)
 
@@ -106,18 +110,19 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def start_baseline_clicked(self):
+        """Open a blocking message when the user wants to start collecting the baseline APA."""
         message_box = QMessageBox(self)
         message_box.setWindowTitle("Attention!")
         message_box.setText(
             "Instruct patient to step off the platform,\n"
             "then hit the Auto-Zero button on the amplifier.\n"
-            "When you have done this click Ok.")
+            "When you have done this click OK.")
         message_box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
 
         button = message_box.exec()
 
         if button == QMessageBox.Ok:
-            print("OK")
+            self.ready_to_collect_baseline_signal.emit()
 
     def connect_data_to_protocol_widget(self):
         self.data_worker.data_signal.connect(self.protocol_widget.receive_data)

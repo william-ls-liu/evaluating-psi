@@ -3,6 +3,7 @@
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Slot, Signal
+from baseline_graph_viewer import GraphDialog
 import numpy as np
 
 
@@ -42,6 +43,10 @@ class ProtocolWidget(QWidget):
         self.stop_trial_button = QPushButton(parent=self, text="Stop Trial")
         self.stop_trial_button.setEnabled(False)
 
+        # Initiate variable to store the baseline data
+        self.baseline_data = dict()
+        self.temporary_data_storage = list()
+
         # Create the layout
         layout = QVBoxLayout()
         layout.addWidget(self.progress_label)
@@ -55,8 +60,6 @@ class ProtocolWidget(QWidget):
         self.setFixedWidth(300)
 
     def start_baseline_button_clicked(self):
-        self.collect_baseline_button.setEnabled(True)
-        self.start_baseline_button.setEnabled(False)
         self.start_baseline_button_signal.emit()
 
     def collect_baseline_button_clicked(self):
@@ -64,10 +67,19 @@ class ProtocolWidget(QWidget):
         self.finish_baseline_button.setEnabled(True)
         self.collect_baseline_button.setEnabled(False)
 
-    def finish_baseline_button_clicked(self, ):
+    def finish_baseline_button_clicked(self):
         self.finish_baseline_button_signal.emit()
         self.start_baseline_button.setEnabled(True)
         self.finish_baseline_button.setEnabled(False)
+
+        # Open the Graph Dialog
+        self.show_baseline_graph()
+
+    def show_baseline_graph(self):
+        """This will be called after the finish baseline button is clicked. It will show you the graph of the lateral
+        CoP and give you the option to save it and collect the next trial or discard it and repeat."""
+        graph_dialog = GraphDialog(parent=self)
+        graph_dialog.open()
 
     @Slot(bool)
     def toggle_collect_baseline_button(self, check_state):
@@ -79,4 +91,9 @@ class ProtocolWidget(QWidget):
 
     @Slot(np.ndarray)
     def receive_data(self, data: np.ndarray):
-        pass
+        self.temporary_data_storage.append(data)
+
+    @Slot()
+    def ready_to_start_baseline(self):
+        self.collect_baseline_button.setEnabled(True)
+        self.start_baseline_button.setEnabled(False)
