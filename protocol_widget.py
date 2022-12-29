@@ -78,8 +78,25 @@ class ProtocolWidget(QWidget):
     def show_baseline_graph(self):
         """This will be called after the finish baseline button is clicked. It will show you the graph of the lateral
         CoP and give you the option to save it and collect the next trial or discard it and repeat."""
-        graph_dialog = GraphDialog(parent=self)
+        graph_dialog = GraphDialog(data=self.temporary_data_storage, parent=self)
         graph_dialog.open()
+        graph_dialog.finished.connect(self.handle_baseline_trial)
+
+    @Slot()
+    def handle_baseline_trial(self, result):
+        """
+        This method will save or discard the most recent baseline trial, depending on what the user selects.
+
+        :param result: The result code of the GraphDialog. 1 = Save trial, 0 = Repeat trial
+        """
+        if result == 1:
+            number_of_baseline_trials = len(self.baseline_data)
+            # Save a copy of the temporary storage list, since clear() on that list will affect references as well
+            self.baseline_data[f"trial {number_of_baseline_trials + 1}"] = self.temporary_data_storage.copy()
+
+        self.temporary_data_storage.clear()
+
+        print(self.baseline_data)
 
     @Slot(bool)
     def toggle_collect_baseline_button(self, check_state):
