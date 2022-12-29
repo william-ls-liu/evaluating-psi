@@ -3,6 +3,7 @@
 from USB6210 import DAQ
 from PySide6.QtCore import QObject, QTimer, Signal, Slot
 import numpy as np
+import json
 
 
 class DataWorker(QObject):
@@ -12,17 +13,29 @@ class DataWorker(QObject):
     def __init__(self):
         super().__init__()
 
+        # Read the settings file and get the sample rate
+        self.sample_rate = self.read_settings_file()
+
         # Set-up the timer to sample from the DAQ
         self.sampling_timer = QTimer(parent=self)
         self.sampling_timer.setInterval(0)
         self.sampling_timer.timeout.connect(self.get_data_from_daq)
 
         # Initialize the DAQ
-        self.DAQ_device = DAQ('Dev1', rate=1000)
+        self.DAQ_device = DAQ('Dev1', rate=self.sample_rate)
         self.DAQ_device.create_tasks('ai1:6', 'ai7:8')
 
         # Store the state of the task
         self.task_is_running = False
+
+    def read_settings_file(self):
+        """Read the settings file to get the sample rate."""
+        with open("amti_settings.json", 'r') as file:
+            settings = json.load(file)
+
+        sample_rate = settings["sample_rate"]
+
+        return sample_rate
 
     @Slot()
     def get_data_from_daq(self):
