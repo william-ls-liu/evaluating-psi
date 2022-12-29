@@ -49,6 +49,7 @@ class MainWindow(QMainWindow):
 
         # Connect the record button to the protocol buttons
         self.control_bar.record_button_signal.connect(self.protocol_widget.toggle_collect_baseline_button)
+        self.control_bar.record_button_signal.connect(self.control_graphs_for_protocol)
 
         # Connect the data from the worker to the plot widget
         self.data_worker.data_signal.connect(self.plot_widget.process_data_from_worker)
@@ -58,13 +59,9 @@ class MainWindow(QMainWindow):
 
         # Connect collect baseline button on the protocol widget
         self.protocol_widget.collect_baseline_button_signal.connect(self.connect_data_to_protocol_widget)
-        self.protocol_widget.collect_baseline_button_signal.connect(self.data_worker.start_sampling)
-        self.protocol_widget.collect_baseline_button_signal.connect(self.plot_widget.start_timer)
 
         # Connect the finish baseline button on the protocol widget
         self.protocol_widget.finish_baseline_button_signal.connect(self.disconnect_data_from_protocol_widget)
-        self.protocol_widget.finish_baseline_button_signal.connect(self.data_worker.stop_sampling)
-        self.protocol_widget.finish_baseline_button_signal.connect(self.plot_widget.stop_timer)
 
         # Connect ready for baseline signal to protocol widget
         self.ready_to_collect_baseline_signal.connect(self.protocol_widget.ready_to_start_baseline)
@@ -124,11 +121,27 @@ class MainWindow(QMainWindow):
         if button == QMessageBox.Ok:
             self.ready_to_collect_baseline_signal.emit()
 
+    @Slot()
     def connect_data_to_protocol_widget(self):
         self.data_worker.data_signal.connect(self.protocol_widget.receive_data)
 
+    @Slot()
     def disconnect_data_from_protocol_widget(self):
         self.data_worker.data_signal.disconnect(self.protocol_widget.receive_data)
+
+    @Slot()
+    def control_graphs_for_protocol(self, check_state):
+        """
+        Method to start/stop the real-time graphs when the Record button is toggled.
+
+        :param check_state: The checked state of the Record button.
+        """
+        if check_state is True:
+            # Emit the start button signal from the ControlBar to start the DataWorker and the graphs
+            self.control_bar.start_button_signal.emit()
+        else:
+            # Emit the stop button signal from the ControlBar to stop the DataWorker and the graphs
+            self.control_bar.stop_button_signal.emit()
 
 
 class ControlBar(QWidget):
