@@ -47,14 +47,17 @@ class PlotWidget(QWidget):
         self.emg_soleus = self.emg_soleus[1:]
         self.emg_soleus.append(data[7])
 
+    @Slot()
     def update_plots(self):
         """Update the graphs with new data."""
         self.plots.update(self.copx, self.copy, self.fz, self.emg_tibialis, self.emg_soleus)
 
+    @Slot()
     def start_timer(self):
         """Start the QTimer."""
         self.timer.start()
 
+    @Slot()
     def stop_timer(self):
         """Stop the QTimer."""
         self.timer.stop()
