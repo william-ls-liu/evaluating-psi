@@ -7,7 +7,37 @@ import json
 
 
 class DataWorker(QObject):
-    """This is a worker to collect data from the NI DAQ and emit the raw data as a signal."""
+    """
+    This is a worker to collect data from the NI DAQ and emit the raw data as a signal.
+
+    Attributes
+    ----------
+    data_signal : PySide6.QtCore.Signal(np.ndarray)
+        a signal of array-like data to be emitted
+    sample_rate : int
+        hardware sample rate for the DAQ in Hz
+    sampling_timer : PySide6.QtCore.QTimer
+        timer to acquire data from DAQ
+    DAQ_device : USB6210.DAQ
+        instance of National Instruments USB6210 Data Acquisition Device
+    task_is_running : bool
+        the state of the DAQ task, running (True) or not running (False)
+
+    Methods
+    -------
+    read_settings_file()
+        Read the JSON file of settings.
+    get_data_from_daq()
+        A Slot connected to timeout of sampling_timer. Read DAQ_device, calculate the center of pressure (CoP),
+        add CoP to array of raw data, and emit data_signal.
+    start_sampling()
+        A Slot. Start sampling_timer and DAQ_device if task is not running
+    stop_sampling()
+        A Slot. If task is running, stop DAQ_device and sampling_timer
+    shutdown()
+        A Slot. Ensure graceful termination of sampling_timer and DAQ_device
+    """
+
     data_signal = Signal(np.ndarray)  # Signal to hold the data from DAQ
 
     def __init__(self):
