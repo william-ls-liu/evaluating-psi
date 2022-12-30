@@ -55,13 +55,16 @@ class MainWindow(QMainWindow):
         self.data_worker.data_signal.connect(self.plot_widget.process_data_from_worker)
 
         # Connect start baseline button on the protocol widget
-        self.protocol_widget.start_baseline_button_signal.connect(self.start_baseline_clicked)
+        self.protocol_widget.start_baseline_signal.connect(self.start_baseline)
+
+        # Connect the cancel baseline button
+        self.protocol_widget.cancel_baseline_signal.connect(self.cancel_baseline)
 
         # Connect collect baseline button on the protocol widget
-        self.protocol_widget.collect_baseline_button_signal.connect(self.connect_data_to_protocol_widget)
+        self.protocol_widget.collect_baseline_signal.connect(self.connect_data_to_protocol_widget)
 
         # Connect the finish baseline button on the protocol widget
-        self.protocol_widget.finish_baseline_button_signal.connect(self.disconnect_data_from_protocol_widget)
+        self.protocol_widget.finish_baseline_signal.connect(self.disconnect_data_from_protocol_widget)
 
         # Connect ready for baseline signal to protocol widget
         self.ready_to_collect_baseline_signal.connect(self.protocol_widget.ready_to_start_baseline)
@@ -106,7 +109,7 @@ class MainWindow(QMainWindow):
         self.close()
 
     @Slot()
-    def start_baseline_clicked(self):
+    def start_baseline(self):
         """Open a blocking message when the user wants to start collecting the baseline APA."""
         message_box = QMessageBox(self)
         message_box.setWindowTitle("Attention!")
@@ -120,6 +123,11 @@ class MainWindow(QMainWindow):
 
         if button == QMessageBox.Ok:
             self.ready_to_collect_baseline_signal.emit()
+            self.control_bar.record_button.setEnabled(False)
+
+    @Slot()
+    def cancel_baseline(self):
+        self.control_bar.record_button.setEnabled(True)
 
     @Slot()
     def connect_data_to_protocol_widget(self):

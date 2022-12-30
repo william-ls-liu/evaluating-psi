@@ -10,9 +10,10 @@ import numpy as np
 class ProtocolWidget(QWidget):
     """This widget holds methods related to PSI protocol."""
 
-    start_baseline_button_signal = Signal()
-    collect_baseline_button_signal = Signal()
-    finish_baseline_button_signal = Signal()
+    start_baseline_signal = Signal()
+    cancel_baseline_signal = Signal()
+    collect_baseline_signal = Signal()
+    finish_baseline_signal = Signal()
 
     def __init__(self, parent) -> None:
         super().__init__(parent=parent)
@@ -73,7 +74,7 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def start_baseline_button_clicked(self):
-        self.start_baseline_button_signal.emit()
+        self.start_baseline_signal.emit()
         self.cancel_baseline_button.setEnabled(True)
 
     @Slot()
@@ -88,10 +89,13 @@ class ProtocolWidget(QWidget):
         )
 
         if message_box == QMessageBox.Yes:
+            # Emit the cancel button signal
+            self.cancel_baseline_signal.emit()
+
             # If the cancel button is pressed during a collection then emit the same signal
             # that the finish button does to disconnect the DataWorker from this widget
             if self.finish_baseline_button.isEnabled():
-                self.finish_baseline_button_signal.emit()
+                self.finish_baseline_signal.emit()
                 self.finish_baseline_button.setEnabled(False)
 
             # Delete all the previously collected trials and any temporary data that has been stored
@@ -108,13 +112,13 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def collect_baseline_button_clicked(self):
-        self.collect_baseline_button_signal.emit()
+        self.collect_baseline_signal.emit()
         self.finish_baseline_button.setEnabled(True)
         self.collect_baseline_button.setEnabled(False)
 
     @Slot()
     def finish_baseline_button_clicked(self):
-        self.finish_baseline_button_signal.emit()
+        self.finish_baseline_signal.emit()
         self.collect_baseline_button.setEnabled(True)
         self.finish_baseline_button.setEnabled(False)
 
@@ -134,7 +138,7 @@ class ProtocolWidget(QWidget):
         Calculate the relative motion of the lateral CoP and return it.
 
         :param data: array-like of raw data from the DataWorker
-        :return: array-like of relative lateral deviation
+        :return: array-like of relative lateral deviation of the CoP
         """
         # Get the lateral CoP data
         copx = [row[8] for row in data]
