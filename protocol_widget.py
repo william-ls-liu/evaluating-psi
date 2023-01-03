@@ -30,6 +30,12 @@ class ProtocolWidget(QWidget):
         self.baseline_trial_counter.setFont(QFont("Arial", 14))
         self.baseline_trial_counter.setWordWrap(True)
 
+        # Label for tracking the APA threshold
+        self.threshold_label = QLabel(parent=self)
+        self.threshold_label.setText("No baseline threshold set")
+        self.threshold_label.setFont(QFont("Arial", 14))
+        self.threshold_label.setWordWrap(True)
+
         # Create buttons for collecting baseline APA
         self.start_baseline_button = QPushButton(parent=self, text="Start baseline collection")
         self.start_baseline_button.setEnabled(False)
@@ -54,6 +60,11 @@ class ProtocolWidget(QWidget):
         self.stop_trial_button = QPushButton(parent=self, text="Stop Trial")
         self.stop_trial_button.setEnabled(False)
 
+        # Button for setting APA threshold
+        self.set_APA_threshold_button = QPushButton(parent=self, text="Set APA Threshold")
+        self.set_APA_threshold_button.setEnabled(False)
+        self.set_APA_threshold_button.clicked.connect(self.set_APA_threshold)
+
         # Initiate variable to store the baseline data
         self.baseline_data = dict()
         self.temporary_data_storage = list()
@@ -61,11 +72,13 @@ class ProtocolWidget(QWidget):
         # Create the layout
         layout = QVBoxLayout()
         layout.addWidget(self.progress_label)
-        layout.addWidget(self.baseline_trial_counter)
+        layout.addWidget(self.set_APA_threshold_button)
         layout.addWidget(self.start_baseline_button)
         layout.addWidget(self.cancel_baseline_button)
         layout.addWidget(self.collect_baseline_button)
         layout.addWidget(self.finish_baseline_button)
+        layout.addWidget(self.baseline_trial_counter)
+        layout.addWidget(self.threshold_label)
         layout.addWidget(self.start_trial_button)
         layout.addWidget(self.stop_trial_button)
 
@@ -102,13 +115,15 @@ class ProtocolWidget(QWidget):
             self.baseline_data.clear()
             self.temporary_data_storage.clear()
 
-            # Disable the cancle button and re-enable the start button
+            # Disable/enable relevant buttons
             self.start_baseline_button.setEnabled(True)
             self.cancel_baseline_button.setEnabled(False)
             self.collect_baseline_button.setEnabled(False)
+            self.set_APA_threshold_button.setEnabled(False)
 
             # Reset the counter
             self.baseline_trial_counter.setText("Number of baseline trials collected: 0")
+            self.threshold_label.setText("No baseline threshold set")
 
     @Slot()
     def collect_baseline_button_clicked(self):
@@ -142,6 +157,7 @@ class ProtocolWidget(QWidget):
         """
         # Get the lateral CoP data
         copx = [row[8] for row in data]
+        # TODO: get rid of this 5000 magic number, read the settings file and get sample rate, then multiply by 5
         quiet_stance = copx[:5000]  # Get first 5s of trial
         x_origin = np.mean(quiet_stance)
 
@@ -160,6 +176,8 @@ class ProtocolWidget(QWidget):
             self.baseline_data[f"trial {number_of_baseline_trials + 1}"] = self.temporary_data_storage.copy()
             # Update the counter to display number of trials collected
             self.baseline_trial_counter.setText(f"Number of baseline trials collected: {number_of_baseline_trials + 1}")
+            # Enable button to set the APA threshold based on collected baseline trials
+            self.set_APA_threshold_button.setEnabled(True)
 
         self.temporary_data_storage.clear()
 
@@ -179,3 +197,19 @@ class ProtocolWidget(QWidget):
     def ready_to_start_baseline(self):
         self.collect_baseline_button.setEnabled(True)
         self.start_baseline_button.setEnabled(False)
+
+    @Slot()
+    def set_APA_threshold(self):
+        """
+        This method will calculate the APA threshold based on the collected baseline trials.
+        """
+
+        maximum_lateral_deviation = list()
+
+        for trial in self.baseline_data.keys():
+
+            trial_data = self.baseline_data[trial].copy()
+            copx = self.calculate_APA(trial_data)
+            maximum_lateral_deviation.append(max(copx, key=abs))
+
+        self.threshold_label.setText(f"APA Threshold: {np.mean(maximum_lateral_deviation)}")
