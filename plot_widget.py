@@ -139,6 +139,8 @@ class Plots(GraphicsLayoutWidget):
 
         # Create the vertical force graph
         self.fz_plot_item = self.addPlot(row=1, col=0, title="Vertical Force (N)")
+        self.fz_plot_item.setRange(yRange=(-1504.76, 1504.76))
+        self.fz_plot_item.disableAutoRange(axis='y')
         self.fz_plot_item.hideAxis('bottom')
         self.fz_plot_line = self.fz_plot_item.plot(x=[0], y=[0])
 
