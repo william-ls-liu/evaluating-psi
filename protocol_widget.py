@@ -1,6 +1,6 @@
 # Author: William Liu <liwi@ohsu.edu>
 
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QMessageBox
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QMessageBox, QComboBox
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Slot, Signal
 from baseline_graph_viewer import GraphDialog
@@ -65,17 +65,23 @@ class ProtocolWidget(QWidget):
         self.finish_baseline_button.setEnabled(False)
         self.finish_baseline_button.clicked.connect(self.finish_baseline_button_clicked)
 
+        # ComboBox for specifying % threshold
+        self.threshold_percentage_entry = QComboBox(parent=self)
+        self.threshold_percentage_entry.addItems(['5', '10', '15', '20', '25', '30'])
+        self.threshold_percentage_entry.currentTextChanged.connect(self.update_threshold_percentage)
+        self.threshold_percentage = int(self.threshold_percentage_entry.currentText())
+
+        # Button for setting APA threshold
+        self.set_APA_threshold_button = QPushButton(parent=self, text="Set APA Threshold")
+        self.set_APA_threshold_button.setEnabled(False)
+        self.set_APA_threshold_button.clicked.connect(self.set_APA_threshold)
+
         # Create buttons for starting/stopping the protocol
         self.start_trial_button = QPushButton(parent=self, text="Start Trial")
         self.start_trial_button.setEnabled(False)
 
         self.stop_trial_button = QPushButton(parent=self, text="Stop Trial")
         self.stop_trial_button.setEnabled(False)
-
-        # Button for setting APA threshold
-        self.set_APA_threshold_button = QPushButton(parent=self, text="Set APA Threshold")
-        self.set_APA_threshold_button.setEnabled(False)
-        self.set_APA_threshold_button.clicked.connect(self.set_APA_threshold)
 
         # Initiate variable to store the baseline data
         self.baseline_data = dict()
@@ -84,11 +90,12 @@ class ProtocolWidget(QWidget):
         # Create the layout
         layout = QVBoxLayout()
         layout.addWidget(self.progress_label)
-        layout.addWidget(self.set_APA_threshold_button)
         layout.addWidget(self.start_baseline_button)
         layout.addWidget(self.cancel_baseline_button)
         layout.addWidget(self.collect_baseline_button)
         layout.addWidget(self.finish_baseline_button)
+        layout.addWidget(self.threshold_percentage_entry)
+        layout.addWidget(self.set_APA_threshold_button)
         layout.addWidget(self.baseline_trial_counter)
         layout.addWidget(self.threshold_label)
         layout.addWidget(self.start_trial_button)
@@ -106,8 +113,8 @@ class ProtocolWidget(QWidget):
     def cancel_baseline_button_clicked(self):
         """Cancels a baseline recording if user accepts.
 
-        Opens a pop-up message box allowing user to confirm the cancellation or continue
-        with the current recording.
+        Opens a pop-up message box allowing user to confirm the cancellation or
+        continue with the current recording.
         """
 
         message_box = QMessageBox.warning(
@@ -120,12 +127,15 @@ class ProtocolWidget(QWidget):
         )
 
         if message_box == QMessageBox.Yes:
+
             # Emit the cancel button signal
             self.cancel_baseline_signal.emit()
 
-            # If the cancel button is pressed during a collection then emit the same signal
-            # that the finish button does to disconnect the DataWorker from this widget
+            # If the cancel button is pressed during a collection then emit the
+            # same signal that the finish button does to disconnect the
+            # DataWorker from this widget
             if self.finish_baseline_button.isEnabled():
+
                 self.finish_baseline_signal.emit()
                 self.finish_baseline_button.setEnabled(False)
 
@@ -161,10 +171,11 @@ class ProtocolWidget(QWidget):
     def show_baseline_graph(self):
         """Display the lateral CoP data from the most recent trial.
 
-        Open a dialog window with a graph of the lateral CoP position vs. time. User can choose to save the trial or
-        discard it, depending on how the graph looks.
+        Open a dialog window with a graph of the lateral CoP position vs. time.
+        User can choose to save the trial or discard it, depending on how the
+        graph looks.
         """
-        
+
         copx = self.calculate_APA(self.temporary_data_storage)
         graph_dialog = GraphDialog(data=copx, parent=self)
         graph_dialog.open()
@@ -173,8 +184,9 @@ class ProtocolWidget(QWidget):
     def calculate_APA(self, data):
         """Calculate the relative motion of the lateral CoP and return it.
 
-        The relative motion is the distance the lateral CoP has moved from the starting position. Starting position is
-        defined as the mean CoP during 5 seconds of quiet stance.
+        The relative motion is the distance the lateral CoP has moved from the
+        starting position. Starting position is defined as the mean CoP during 5
+        seconds of quiet stance.
 
         Parameters
         ----------
@@ -188,23 +200,25 @@ class ProtocolWidget(QWidget):
         """
 
         # Get the lateral CoP data
-        copx = [row[8] for row in data]
+        cop_mediolateral = [row[8] for row in data]
         # TODO: get rid of this 5000 magic number, read the settings file and get sample rate, then multiply by 5
-        quiet_stance = copx[:5000]  # Get first 5s of trial
+        quiet_stance = cop_mediolateral[:5000]  # Get first 5s of trial
         x_origin = np.mean(quiet_stance)
 
         return [row[8] - x_origin for row in data]
 
     @Slot(int)
     def handle_baseline_trial(self, result):
-        """This method will save or discard the most recent baseline trial, depending on what the user selects.
+        """Save or discard the most recent baseline trial, depending on what the user selects.
 
         Parameters
         ----------
         result : int
-            result code emitted when `GraphDialog` window is closed, 1 indicates user wants to save the trial
+            result code emitted when `GraphDialog` window is closed, 1 indicates
+            user wants to save the trial
         """
         if result == 1:
+
             number_of_baseline_trials = len(self.baseline_data)
             # Save a copy of the temporary storage list, since clear() on that list will affect references as well
             self.baseline_data[f"trial {number_of_baseline_trials + 1}"] = self.temporary_data_storage.copy()
@@ -216,7 +230,7 @@ class ProtocolWidget(QWidget):
         self.temporary_data_storage.clear()
 
     @Slot(bool)
-    def toggle_collect_baseline_button(self, check_state):
+    def toggle_collect_baseline_button(self, check_state) -> None:
         self.start_baseline_button.setEnabled(check_state)
         self.collect_baseline_button.setEnabled(False)
         self.finish_baseline_button.setEnabled(False)
@@ -224,20 +238,30 @@ class ProtocolWidget(QWidget):
         self.stop_trial_button.setEnabled(False)
 
     @Slot(np.ndarray)
-    def receive_data(self, data: np.ndarray):
+    def receive_data(self, data: np.ndarray) -> None:
+        """Receives data from the `DataWorker` and stores it in a `list`.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            array sent from `DataWorker`
+        """
+
         self.temporary_data_storage.append(data)
 
     @Slot()
-    def ready_to_start_baseline(self):
+    def ready_to_start_baseline(self) -> None:
         self.collect_baseline_button.setEnabled(True)
         self.start_baseline_button.setEnabled(False)
 
     @Slot()
-    def set_APA_threshold(self):
-        """This method will calculate the APA threshold based on the collected baseline trials.
+    def set_APA_threshold(self) -> None:
+        """Calculate the APA threshold based on the collected baseline trials.
 
-        For every trial find the maximum, relative, lateral deviation of the CoP. Find the mean
-        across all trials to get the average lateral CoP deviation during a step.
+        For every trial find the maximum lateral deviation of the CoP. Find the
+        mean across all trials to get the average lateral CoP deviation during a
+        step. Multiply this by the user-defined `threshold_percentage` to get
+        the threshold for an anticipatory postural adjustment (APA).
         """
 
         maximum_lateral_deviation = list()
@@ -245,7 +269,14 @@ class ProtocolWidget(QWidget):
         for trial in self.baseline_data.keys():
 
             trial_data = self.baseline_data[trial].copy()
-            copx = self.calculate_APA(trial_data)
-            maximum_lateral_deviation.append(max(copx, key=abs))
+            cop_mediolateral = self.calculate_APA(trial_data)
+            maximum_lateral_deviation.append(max(cop_mediolateral, key=abs))
 
-        self.threshold_label.setText(f"APA Threshold: {np.mean(maximum_lateral_deviation)}")
+        mean_maximum_lateral_deviation = np.mean(maximum_lateral_deviation)
+        apa_threshold = self.threshold_percentage * mean_maximum_lateral_deviation / 100
+
+        self.threshold_label.setText(f"APA Threshold: {round(apa_threshold, 4)}")
+
+    @Slot(str)
+    def update_threshold_percentage(self, percentage: str) -> None:
+        self.threshold_percentage = int(percentage)
