@@ -7,8 +7,8 @@ import numpy as np
 from collections import namedtuple
 
 
-amplifier_range_namedtuple = namedtuple(
-    "Amplifier Range",
+AmplifierRange = namedtuple(
+    "AmplifierRange",
     [
         'Fx_min',
         'Fx_max',
@@ -25,7 +25,7 @@ amplifier_range_namedtuple = namedtuple(
     ]
 )
 
-AMPLIFIER_RANGE = amplifier_range_namedtuple(
+AMPLIFIER_RANGE = AmplifierRange(
     Fx_min=-192.73,
     Fx_max=192.73,
     Fy_min=-193.55,
