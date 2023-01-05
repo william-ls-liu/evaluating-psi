@@ -1,5 +1,5 @@
 {
-    "analog_sensitivities":[6.4722, 6.4448, 1.6601, 16.0340, 16.1206, 33.0288],
+    "analog_sensitivities":[25.9425, 25.8327, 3.3228, 32.0927, 32.2660, 132.3888],
     "sample_rate": 1000,
     "channel_index": {
         "Fx": 0,
