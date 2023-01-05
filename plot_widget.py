@@ -4,11 +4,45 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout)
 from PySide6.QtCore import Slot, QTimer
 from pyqtgraph import GraphicsLayoutWidget
 import numpy as np
+from collections import namedtuple
+
+
+amplifier_range_namedtuple = namedtuple(
+    "Amplifier Range",
+    [
+        'Fx_min',
+        'Fx_max',
+        'Fy_min',
+        'Fy_max',
+        'Fz_min',
+        'Fz_max',
+        'Mx_min',
+        'Mx_max',
+        'My_min',
+        'My_max',
+        'Mz_min',
+        'Mz_max'
+    ]
+)
+
+AMPLIFIER_RANGE = amplifier_range_namedtuple(
+    Fx_min=-192.73,
+    Fx_max=192.73,
+    Fy_min=-193.55,
+    Fy_max=193.55,
+    Fz_min=-1504.76,
+    Fz_max=1504.76,
+    Mx_min=-155.80,
+    Mx_max=155.80,
+    My_min=-154.96,
+    My_max=154.96,
+    Mz_min=-37.77,
+    Mz_max=37.77
+)
 
 
 class PlotWidget(QWidget):
-    """
-    Custom widget that receives data and plots it using pyqtgraph.
+    """Custom widget that receives data and plots it using pyqtgraph.
 
     Attributes
     ----------
@@ -16,12 +50,12 @@ class PlotWidget(QWidget):
         a pyqtgraph GraphicsLayoutWidget that contains subplots
     timer : PySide6.QtCore.QTimer
         timer object, on timeout it updates the graphs with any new data
-    copx : list
-        stores the mediolateral (X-direction) center of pressure coordinates
-    copy : list
-        stores the anterioposterior (Y-direction) center of pressure coordinates
-    fz : list
-        stores the vertical (Z-direction) force values
+    cop_xdirection : list
+        stores center of pressure coordinates in the x-direction
+    cop_ydirection : list
+        stores center of pressure coordinates in the y-direction
+    force_zdirection : list
+        stores the force values in the z-direction
     emg_tibialis : list
         stores the voltage values from the EMG placed on the tibialis
     emg_soleus : list
@@ -59,10 +93,12 @@ class PlotWidget(QWidget):
         self.timer.timeout.connect(self.update_plots)
 
         # Initiate variables to store incoming data from DataWorker
+        # TODO: Get rid of this magic number and use the sample rate multiplied
+        # by however many seconds should be shown
         samples_to_show = 2000
-        self.copx = [0 for i in range(samples_to_show)]
-        self.copy = [0 for i in range(samples_to_show)]
-        self.fz = [0 for i in range(samples_to_show)]
+        self.cop_xdirection = [0 for i in range(samples_to_show)]
+        self.cop_ydirection = [0 for i in range(samples_to_show)]
+        self.force_zdirection = [0 for i in range(samples_to_show)]
         self.emg_tibialis = [0 for i in range(samples_to_show)]
         self.emg_soleus = [0 for i in range(samples_to_show)]
 
@@ -84,13 +120,13 @@ class PlotWidget(QWidget):
             incoming data
         """
 
-        self.copx = self.copx[1:]
-        self.copx.append(data[8])
-        self.copy = self.copy[1:]
-        self.copy.append(data[9])
+        self.cop_xdirection = self.cop_xdirection[1:]
+        self.cop_xdirection.append(data[8])
+        self.cop_ydirection = self.cop_ydirection[1:]
+        self.cop_ydirection.append(data[9])
 
-        self.fz = self.fz[1:]
-        self.fz.append(data[2])
+        self.force_zdirection = self.force_zdirection[1:]
+        self.force_zdirection.append(data[2])
 
         self.emg_tibialis = self.emg_tibialis[1:]
         self.emg_tibialis.append(data[6])
@@ -101,7 +137,13 @@ class PlotWidget(QWidget):
     def update_plots(self) -> None:
         """Update the graphs with new data."""
 
-        self.plots.update(self.copx, self.copy, self.fz, self.emg_tibialis, self.emg_soleus)
+        self.plots.update(
+            self.cop_xdirection,
+            self.cop_ydirection,
+            self.force_zdirection,
+            self.emg_tibialis,
+            self.emg_soleus
+        )
 
     @Slot()
     def start_timer(self) -> None:
@@ -139,7 +181,7 @@ class Plots(GraphicsLayoutWidget):
 
         # Create the vertical force graph
         self.fz_plot_item = self.addPlot(row=1, col=0, title="Vertical Force (N)")
-        self.fz_plot_item.setRange(yRange=(-1504.76, 1504.76))
+        self.fz_plot_item.setRange(yRange=(AMPLIFIER_RANGE.Fz_min, AMPLIFIER_RANGE.Fz_max))
         self.fz_plot_item.disableAutoRange(axis='y')
         self.fz_plot_item.hideAxis('bottom')
         self.fz_plot_line = self.fz_plot_item.plot(x=[0], y=[0])
@@ -157,25 +199,25 @@ class Plots(GraphicsLayoutWidget):
         self.emg_soleus_plot_item.hideAxis('bottom')
         self.emg_soleus_plot_line = self.emg_soleus_plot_item.plot(x=[0], y=[0])
 
-    def update(self, copx, copy, fz, emg_tibialis, emg_soleus) -> None:
+    def update(self, cop_xdirection, cop_ydirection, force_zdirection, emg_tibialis, emg_soleus) -> None:
         """
         Update the graphs with new data.
 
         Parameters
         ----------
-        copx : list
-            mediolateral center of pressure data
-        copy : list
-            anterioposterior center of pressure data
-        fz : list
-            vertical force data
+        cop_xdirection : list
+            center of pressure data in x-direction (platform coordinates)
+        cop_ydirection : list
+            center of pressure data in y-direction (platform coordinates)
+        force_zdirection : list
+            force data in the z-direction (platform coordinates)
         emg_tibialis : list
             emg data from tibialis sensor
         emg_soleus : list
             emg data from soleus sensor
         """
 
-        self.cop_plot_line.setData(x=[copx[-1]], y=[copy[-1]])
-        self.fz_plot_line.setData(y=fz)
+        self.cop_plot_line.setData(x=[cop_xdirection[-1]], y=[cop_ydirection[-1]])
+        self.fz_plot_line.setData(y=force_zdirection)
         self.emg_tibialis_plot_line.setData(y=emg_tibialis)
         self.emg_soleus_plot_line.setData(y=emg_soleus)
