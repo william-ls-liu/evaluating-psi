@@ -139,7 +139,7 @@ class ProtocolWidget(QWidget):
                 self.finish_baseline_signal.emit()
                 self.finish_baseline_button.setEnabled(False)
 
-            # Delete all the previously collected trials and any temporary data that has been stored
+            # Delete all previously collected trials and any temporary data
             self.baseline_data.clear()
             self.temporary_data_storage.clear()
 
@@ -176,8 +176,8 @@ class ProtocolWidget(QWidget):
         graph looks.
         """
 
-        copx = self.calculate_APA(self.temporary_data_storage)
-        graph_dialog = GraphDialog(data=copx, parent=self)
+        cop_xdirection = self.calculate_APA(self.temporary_data_storage)
+        graph_dialog = GraphDialog(data=cop_xdirection, parent=self)
         graph_dialog.open()
         graph_dialog.finished.connect(self.handle_baseline_trial)
 
@@ -200,9 +200,9 @@ class ProtocolWidget(QWidget):
         """
 
         # Get the lateral CoP data
-        cop_mediolateral = [row[8] for row in data]
+        cop_xdirection = [row[8] for row in data]
         # TODO: get rid of this 5000 magic number, read the settings file and get sample rate, then multiply by 5
-        quiet_stance = cop_mediolateral[:5000]  # Get first 5s of trial
+        quiet_stance = cop_xdirection[:5000]  # Get first 5s of trial
         x_origin = np.mean(quiet_stance)
 
         return [row[8] - x_origin for row in data]
