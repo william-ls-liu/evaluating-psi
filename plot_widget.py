@@ -40,6 +40,8 @@ AMPLIFIER_RANGE = AmplifierRange(
     Mz_max=37.77
 )
 
+SAMPLES_TO_SHOW = 2000
+
 
 class PlotWidget(QWidget):
     """Custom widget that receives data and plots it using pyqtgraph.
@@ -95,12 +97,11 @@ class PlotWidget(QWidget):
         # Initiate variables to store incoming data from DataWorker
         # TODO: Get rid of this magic number and use the sample rate multiplied
         # by however many seconds should be shown
-        samples_to_show = 2000
-        self.cop_xdirection = [0 for i in range(samples_to_show)]
-        self.cop_ydirection = [0 for i in range(samples_to_show)]
-        self.force_zdirection = [0 for i in range(samples_to_show)]
-        self.emg_tibialis = [0 for i in range(samples_to_show)]
-        self.emg_soleus = [0 for i in range(samples_to_show)]
+        self.cop_xdirection = [0 for i in range(SAMPLES_TO_SHOW)]
+        self.cop_ydirection = [0 for i in range(SAMPLES_TO_SHOW)]
+        self.force_zdirection = [0 for i in range(SAMPLES_TO_SHOW)]
+        self.emg_tibialis = [0 for i in range(SAMPLES_TO_SHOW)]
+        self.emg_soleus = [0 for i in range(SAMPLES_TO_SHOW)]
 
         layout = QVBoxLayout()
         layout.addWidget(self.plots)
@@ -177,7 +178,15 @@ class Plots(GraphicsLayoutWidget):
         self.cop_plot_item.disableAutoRange(axis='xy')
         self.cop_plot_item.invertX(b=True)  # AMTI axis definitions have +X on the left side of the platform
         self.cop_plot_item.hideButtons()  # Hide the auto-scale button
-        self.cop_plot_line = self.cop_plot_item.plot(x=[0], y=[0], pen=None, symbol='o')
+        self.cop_plot_line = self.cop_plot_item.plot(
+            x=[0],
+            y=[0],
+            pen=None,
+            symbol='o',
+            symbolSize=2,
+            symbolPen=(167, 204, 237),
+            symbolBrush=(167, 204, 237)
+        )
 
         # Create the vertical force graph
         self.fz_plot_item = self.addPlot(row=1, col=0, title="Vertical Force (N)")
@@ -217,7 +226,8 @@ class Plots(GraphicsLayoutWidget):
             emg data from soleus sensor
         """
 
-        self.cop_plot_line.setData(x=[cop_xdirection[-1]], y=[cop_ydirection[-1]])
+        # self.cop_plot_line.setData(x=[cop_xdirection[-1]], y=[cop_ydirection[-1]])
+        self.cop_plot_line.setData(x=cop_xdirection, y=cop_ydirection)
         self.fz_plot_line.setData(y=force_zdirection)
         self.emg_tibialis_plot_line.setData(y=emg_tibialis)
         self.emg_soleus_plot_line.setData(y=emg_soleus)
