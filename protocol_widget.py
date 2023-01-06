@@ -1,6 +1,6 @@
 # Author: William Liu <liwi@ohsu.edu>
 
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QMessageBox, QComboBox
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QMessageBox, QComboBox, QGridLayout
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Slot, Signal
 from baseline_graph_viewer import GraphDialog
@@ -8,14 +8,14 @@ import numpy as np
 
 
 class ProtocolWidget(QWidget):
-    """This widget provides buttons to control the data collection and labels to show the progress.
+    """Sidebar with buttons that control data collection and display progress.
 
     Attributes
     ----------
     start_baseline_signal : PySide6.QtCore.Signal
         a signal that is emitted when `start_baseline_button` is clicked
-    cancel_baseline_signal : PySide6.QtCore.Signal
-        a signal that is emitted when `cancel_baseline_button` is clicked
+    stop_baseline_signal : PySide6.QtCore.Signal
+        a signal that is emitted when `stop_baseline_button` is clicked
     collect_baseline_signal : PySide6.QtCore.Signal
         a signal that is emitted when `collect_baseline_button` is clicked
     finish_baseline_signal : PySide6.QtCore.Signal
@@ -23,7 +23,7 @@ class ProtocolWidget(QWidget):
     """
 
     start_baseline_signal = Signal()
-    cancel_baseline_signal = Signal()
+    stop_baseline_signal = Signal()
     collect_baseline_signal = Signal()
     finish_baseline_signal = Signal()
 
@@ -36,34 +36,11 @@ class ProtocolWidget(QWidget):
         self.progress_label.setFont(QFont("Arial", 16, QFont.Bold))
         self.progress_label.setWordWrap(True)
 
-        # Create a label to keep track of the number of baseline trials
-        self.baseline_trial_counter = QLabel(parent=self)
-        self.baseline_trial_counter.setText("Number of baseline trials collected: 0")
-        self.baseline_trial_counter.setFont(QFont("Arial", 14))
-        self.baseline_trial_counter.setWordWrap(True)
-
         # Label for tracking the APA threshold
         self.threshold_label = QLabel(parent=self)
         self.threshold_label.setText("No baseline threshold set")
         self.threshold_label.setFont(QFont("Arial", 14))
         self.threshold_label.setWordWrap(True)
-
-        # Create buttons for collecting baseline APA
-        self.start_baseline_button = QPushButton(parent=self, text="Start baseline collection")
-        self.start_baseline_button.setEnabled(False)
-        self.start_baseline_button.clicked.connect(self.start_baseline_button_clicked)
-
-        self.cancel_baseline_button = QPushButton(parent=self, text="Cancel baseline collection")
-        self.cancel_baseline_button.setEnabled(False)
-        self.cancel_baseline_button.clicked.connect(self.cancel_baseline_button_clicked)
-
-        self.collect_baseline_button = QPushButton(parent=self, text="Collect baseline step")
-        self.collect_baseline_button.setEnabled(False)
-        self.collect_baseline_button.clicked.connect(self.collect_baseline_button_clicked)
-
-        self.finish_baseline_button = QPushButton(parent=self, text="Finish baseline collection")
-        self.finish_baseline_button.setEnabled(False)
-        self.finish_baseline_button.clicked.connect(self.finish_baseline_button_clicked)
 
         # ComboBox for specifying % threshold
         self.threshold_percentage_entry = QComboBox(parent=self)
@@ -87,30 +64,65 @@ class ProtocolWidget(QWidget):
         self.baseline_data = dict()
         self.temporary_data_storage = list()
 
-        # Create the layout
+        # Create the parent layout
         layout = QVBoxLayout()
+
+        # Create layout for the baseline buttons
+        baseline_layout = QGridLayout()
+
+        # Populate the layout
         layout.addWidget(self.progress_label)
-        layout.addWidget(self.start_baseline_button)
-        layout.addWidget(self.cancel_baseline_button)
-        layout.addWidget(self.collect_baseline_button)
-        layout.addWidget(self.finish_baseline_button)
+        layout.addLayout(baseline_layout)
         layout.addWidget(self.threshold_percentage_entry)
         layout.addWidget(self.set_APA_threshold_button)
-        layout.addWidget(self.baseline_trial_counter)
         layout.addWidget(self.threshold_label)
         layout.addWidget(self.start_trial_button)
         layout.addWidget(self.stop_trial_button)
 
+        # Populate the baseline layout
+        self._create_baseline_layout(baseline_layout)
+
         self.setLayout(layout)
         self.setFixedWidth(300)
+
+    def _create_baseline_layout(self, layout):
+        """Create buttons for baseline collection, add them to a layout."""
+
+        self.start_baseline_button = QPushButton(self, text="Start baseline collection")
+        self.start_baseline_button.setEnabled(False)
+        self.start_baseline_button.clicked.connect(self.start_baseline_button_clicked)
+
+        self.stop_baseline_button = QPushButton(self, text="Stop baseline collection")
+        self.stop_baseline_button.setEnabled(False)
+        self.stop_baseline_button.clicked.connect(self.stop_baseline_button_clicked)
+
+        self.collect_baseline_button = QPushButton(self, text="Collect a step")
+        self.collect_baseline_button.setEnabled(False)
+        self.collect_baseline_button.clicked.connect(self.collect_baseline_button_clicked)
+
+        self.finish_baseline_button = QPushButton(parent=self, text="Finish baseline collection")
+        self.finish_baseline_button.setEnabled(False)
+        self.finish_baseline_button.clicked.connect(self.finish_baseline_button_clicked)
+
+        # Create a label to keep track of the number of baseline trials
+        self.baseline_trial_counter = QLabel(parent=self)
+        self.baseline_trial_counter.setText("Number of baseline trials collected: 0")
+        self.baseline_trial_counter.setFont(QFont("Arial", 14))
+        self.baseline_trial_counter.setWordWrap(True)
+
+        layout.addWidget(self.start_baseline_button, 0, 0)
+        layout.addWidget(self.stop_baseline_button, 0, 1)
+        layout.addWidget(self.collect_baseline_button, 1, 0, 1, 2)
+        layout.addWidget(self.finish_baseline_button, 2, 0, 1, 2)
+        layout.addWidget(self.baseline_trial_counter, 3, 0, 1, 2)
 
     @Slot()
     def start_baseline_button_clicked(self):
         self.start_baseline_signal.emit()
-        self.cancel_baseline_button.setEnabled(True)
+        self.stop_baseline_button.setEnabled(True)
 
     @Slot()
-    def cancel_baseline_button_clicked(self):
+    def stop_baseline_button_clicked(self):
         """Cancels a baseline recording if user accepts.
 
         Opens a pop-up message box allowing user to confirm the cancellation or
@@ -120,7 +132,7 @@ class ProtocolWidget(QWidget):
         message_box = QMessageBox.warning(
             self,
             "Warning!",
-            "Are you sure you want to cancel the baseline collection?\n"
+            "Are you sure you want to stop the baseline collection?\n"
             "You will lose all previously collect baseline trials.",
             buttons=QMessageBox.No | QMessageBox.Yes,
             defaultButton=QMessageBox.No
@@ -128,10 +140,10 @@ class ProtocolWidget(QWidget):
 
         if message_box == QMessageBox.Yes:
 
-            # Emit the cancel button signal
-            self.cancel_baseline_signal.emit()
+            # Emit the stop button signal
+            self.stop_baseline_signal.emit()
 
-            # If the cancel button is pressed during a collection then emit the
+            # If the stop button is pressed during a collection then emit the
             # same signal that the finish button does to disconnect the
             # DataWorker from this widget
             if self.finish_baseline_button.isEnabled():
@@ -145,7 +157,7 @@ class ProtocolWidget(QWidget):
 
             # Disable/enable relevant buttons
             self.start_baseline_button.setEnabled(True)
-            self.cancel_baseline_button.setEnabled(False)
+            self.stop_baseline_button.setEnabled(False)
             self.collect_baseline_button.setEnabled(False)
             self.set_APA_threshold_button.setEnabled(False)
 
