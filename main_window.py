@@ -57,8 +57,8 @@ class MainWindow(QMainWindow):
         # Connect start baseline button on the protocol widget
         self.protocol_widget.start_baseline_signal.connect(self.start_baseline)
 
-        # Connect the cancel baseline button
-        self.protocol_widget.cancel_baseline_signal.connect(self.cancel_baseline)
+        # Connect the stop baseline button
+        self.protocol_widget.stop_baseline_signal.connect(self.stop_baseline)
 
         # Connect collect baseline button on the protocol widget
         self.protocol_widget.collect_baseline_signal.connect(self.connect_data_to_protocol_widget)
@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
             self.control_bar.record_button.setEnabled(False)
 
     @Slot()
-    def cancel_baseline(self):
+    def stop_baseline(self):
         self.control_bar.record_button.setEnabled(True)
 
     @Slot()
