@@ -172,6 +172,11 @@ sound_test.py
 *.wav
 *.csv
 icons/
+cop.py
+data_viewer.py
+gui.py
+progress_widget.py
+sounds.py
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
