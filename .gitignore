@@ -170,13 +170,8 @@ amti_platform.py
 setup.cfg
 sound_test.py
 *.wav
-<<<<<<< HEAD
-icons/
-*.csv
-=======
 *.csv
 icons/
->>>>>>> new_baseline_routine
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
