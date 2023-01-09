@@ -1,3 +1,16 @@
 {
-    "analog_sensitivities":[25.9402, 25.8302, 6.6545, 64.2686, 64.6160, 132.3875]
+    "analog_sensitivities":[25.9425, 25.8327, 3.3228, 32.0927, 32.2660, 132.3888],
+    "sample_rate": 1000,
+    "channel_index": {
+        "Fx": 0,
+        "Fy": 1,
+        "Fz": 2,
+        "Mx": 3,
+        "My": 4,
+        "Mz": 5,
+        "EMG_tibialis": 6,
+        "EMG_soleus": 7,
+        "CoP_X": 8,
+        "CoP_Y": 9
+    }
 }
