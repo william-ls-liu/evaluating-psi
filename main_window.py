@@ -82,7 +82,16 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.central_widget)
 
     def closeEvent(self, event):
-        """Override of the default close method. Ensure the thread is shut down and the DAQ task is stopped."""
+        """Override of the default close event handler.
+
+        Ensure the thread is shut down and the DAQ task is stopped.
+
+        Parameters
+        ----------
+        event : PySide6.QtGui.QCloseEvent
+            a close event object
+        """
+
         # First, stop the QTimer that is active in the worker thread, and wait for it to actually stop
         timer_active = self.data_worker.sampling_timer.isActive()
         if timer_active:
@@ -98,11 +107,6 @@ class MainWindow(QMainWindow):
                 thread_finished = self.data_worker_thread.isFinished()
 
         event.accept()
-
-    @Slot(bool)
-    def get_shutdown_status(self, status):
-        self.ready_for_shutdown = status
-        self.close()
 
     @Slot()
     def start_baseline(self):
@@ -122,10 +126,12 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def control_graphs_for_protocol(self, check_state):
-        """
-        Method to start/stop the real-time graphs when the Record button is toggled.
+        """Start/stop the real-time graphs when the record button is toggled.
 
-        :param check_state: The checked state of the Record button.
+        Parameters
+        ----------
+        check_state : bool
+            the state of the record button
         """
         if check_state is True:
             # Emit the start button signal from the ControlBar to start the DataWorker and the graphs
@@ -137,6 +143,7 @@ class MainWindow(QMainWindow):
 
 class ControlBar(QWidget):
     """This is the toolbar that holds the buttons that control the software."""
+
     stop_button_signal = Signal()
     start_button_signal = Signal()
     record_button_signal = Signal(bool)
@@ -160,17 +167,26 @@ class ControlBar(QWidget):
 
     def stop_button_clicked(self):
         """Emit the stop signal when the button is clicked."""
+
         self.stop_button_signal.emit()
         self.record_button.setEnabled(True)
 
     def start_button_clicked(self):
         """Emit the start signal when the button is clicked."""
+
         self.start_button_signal.emit()
         self.record_button.setEnabled(False)
 
     def record_button_clicked(self, check_state):
-        """Emit the record signal when the button is clicked."""
-        # Change the state of the start and stop buttons based on if the record button is checked
+        """Emit the record signal when the button is clicked.
+
+        Parameters
+        ----------
+        check_state : bool
+            the state of the record button
+        """
+
+        # If record button checked/unchecked, disable/enable start + stop buttons
         self.start_button.setDisabled(self.record_button.isChecked())
         self.stop_button.setDisabled(self.record_button.isChecked())
 
