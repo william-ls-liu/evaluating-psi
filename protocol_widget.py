@@ -37,15 +37,17 @@ class ProtocolWidget(QWidget):
         self.progress_label.setWordWrap(True)
 
         # Label for tracking the APA threshold
+        self.threshold = None
         self.threshold_label = QLabel(parent=self)
-        self.threshold_label.setText("No baseline threshold set")
         self.threshold_label.setFont(QFont("Arial", 14))
         self.threshold_label.setWordWrap(True)
+        self._update_APA_threshold_label()
 
         # ComboBox for specifying % threshold
         self.threshold_percentage_entry = QComboBox(parent=self)
         self.threshold_percentage_entry.addItems(['5', '10', '15', '20', '25', '30'])
         self.threshold_percentage_entry.currentTextChanged.connect(self.update_threshold_percentage)
+        # Initialize to default combo box value
         self.threshold_percentage = int(self.threshold_percentage_entry.currentText())
 
         # Button for setting APA threshold
@@ -122,6 +124,12 @@ class ProtocolWidget(QWidget):
             f"Number of baseline trials collected: {self.baseline_trial_counter}"
         )
 
+    def _update_APA_threshold_label(self):
+        if self.threshold is None:
+            self.threshold_label.setText("No baseline threshold set")
+        else:
+            self.threshold_label.setText(f"APA Threshold: {round(self.threshold, 4)}")
+
     @Slot()
     def start_baseline_button_clicked(self):
         """Open a blocking message when the user wants to start collecting the baseline APA."""
@@ -174,6 +182,9 @@ class ProtocolWidget(QWidget):
             self.baseline_trial_counter = 0
             self._update_baseline_trial_counter_label()
             self.set_APA_threshold_button.setEnabled(False)
+            self.threshold = None  # Clear any previously set APA threshold
+        elif ret == QMessageBox.Save:
+            self.start_trial_button.setEnabled(True)
 
         if ret in {QMessageBox.Discard, QMessageBox.Save, QMessageBox.Yes}:
             self.start_baseline_button.setEnabled(True)
@@ -294,9 +305,8 @@ class ProtocolWidget(QWidget):
             maximum_lateral_deviation.append(max(cop_mediolateral, key=abs))
 
         mean_maximum_lateral_deviation = np.mean(maximum_lateral_deviation)
-        apa_threshold = self.threshold_percentage * mean_maximum_lateral_deviation / 100
-
-        self.threshold_label.setText(f"APA Threshold: {round(apa_threshold, 4)}")
+        self.threshold = self.threshold_percentage * mean_maximum_lateral_deviation / 100
+        self._update_APA_threshold_label()
 
     @Slot(str)
     def update_threshold_percentage(self, percentage: str) -> None:
