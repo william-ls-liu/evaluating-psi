@@ -258,12 +258,8 @@ class ProtocolWidget(QWidget):
         self.temporary_data_storage.clear()
 
     @Slot(bool)
-    def toggle_collect_baseline_button(self, check_state) -> None:
+    def toggle_start_baseline_button(self, check_state) -> None:
         self.start_baseline_button.setEnabled(check_state)
-        self.collect_baseline_button.setEnabled(False)
-        self.finish_baseline_button.setEnabled(False)
-        self.start_trial_button.setEnabled(False)
-        self.stop_trial_button.setEnabled(False)
 
     @Slot(np.ndarray)
     def receive_data(self, data: np.ndarray) -> None:
