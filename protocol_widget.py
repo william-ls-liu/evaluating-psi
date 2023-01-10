@@ -105,16 +105,22 @@ class ProtocolWidget(QWidget):
         self.finish_baseline_button.clicked.connect(self.finish_baseline_button_clicked)
 
         # Create a label to keep track of the number of baseline trials
-        self.baseline_trial_counter = QLabel(parent=self)
-        self.baseline_trial_counter.setText("Number of baseline trials collected: 0")
-        self.baseline_trial_counter.setFont(QFont("Arial", 14))
-        self.baseline_trial_counter.setWordWrap(True)
+        self.baseline_trial_counter = 0
+        self.baseline_trial_counter_label = QLabel(parent=self)
+        self.baseline_trial_counter_label.setFont(QFont("Arial", 14))
+        self.baseline_trial_counter_label.setWordWrap(True)
+        self._update_baseline_trial_counter_label()
 
         layout.addWidget(self.start_baseline_button, 0, 0)
         layout.addWidget(self.stop_baseline_button, 0, 1)
         layout.addWidget(self.collect_baseline_button, 1, 0, 1, 2)
         layout.addWidget(self.finish_baseline_button, 2, 0, 1, 2)
-        layout.addWidget(self.baseline_trial_counter, 3, 0, 1, 2)
+        layout.addWidget(self.baseline_trial_counter_label, 3, 0, 1, 2)
+
+    def _update_baseline_trial_counter_label(self):
+        self.baseline_trial_counter_label.setText(
+            f"Number of baseline trials collected: {self.baseline_trial_counter}"
+        )
 
     @Slot()
     def start_baseline_button_clicked(self):
@@ -137,47 +143,43 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def stop_baseline_button_clicked(self):
-        """Cancels a baseline recording if user accepts.
+        """Opens dialog for user to stop baseline collection, if they choose.
 
-        Opens a pop-up message box allowing user to confirm the cancellation or
-        continue with the current recording.
+        Pop-up message box will allow user to save any previously collected
+        baseline trials. If no baseline data has been collected user is given
+        the choice to stop baseline collection or continue.
         """
 
-        message_box = QMessageBox.warning(
-            self,
-            "Warning!",
-            "Are you sure you want to stop the baseline collection?\n"
-            "You will lose all previously collect baseline trials.",
-            buttons=QMessageBox.No | QMessageBox.Yes,
-            defaultButton=QMessageBox.No
-        )
+        message_box = QMessageBox()
+        message_box.setWindowTitle("Stop baseline collection?")
+        message_box.setIcon(QMessageBox.Information)
 
-        if message_box == QMessageBox.Yes:
+        if self.baseline_data:
+            message_box.setText(
+                f"Number of pending baseline trials: {self.baseline_trial_counter}"
+            )
+            message_box.setInformativeText("Do you want to save these trials?")
+            message_box.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+            message_box.setDefaultButton(QMessageBox.Save)
+        else:
+            message_box.setText("You have not collected any baseline trials")
+            message_box.setInformativeText("Do you want to stop baseline collection?")
+            message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            message_box.setDefaultButton(QMessageBox.Yes)
 
-            # Emit the stop button signal
-            self.stop_baseline_signal.emit()
+        ret = message_box.exec()
 
-            # If the stop button is pressed during a collection then emit the
-            # same signal that the finish button does to disconnect the
-            # DataWorker from this widget
-            if self.finish_baseline_button.isEnabled():
-
-                self.finish_baseline_signal.emit()
-                self.finish_baseline_button.setEnabled(False)
-
-            # Delete all previously collected trials and any temporary data
+        if ret == QMessageBox.Discard:
             self.baseline_data.clear()
-            self.temporary_data_storage.clear()
+            self.baseline_trial_counter = 0
+            self._update_baseline_trial_counter_label()
+            self.set_APA_threshold_button.setEnabled(False)
 
-            # Disable/enable relevant buttons
+        if ret in {QMessageBox.Discard, QMessageBox.Save, QMessageBox.Yes}:
             self.start_baseline_button.setEnabled(True)
             self.stop_baseline_button.setEnabled(False)
             self.collect_baseline_button.setEnabled(False)
-            self.set_APA_threshold_button.setEnabled(False)
-
-            # Reset the counter
-            self.baseline_trial_counter.setText("Number of baseline trials collected: 0")
-            self.threshold_label.setText("No baseline threshold set")
+            self.stop_baseline_signal.emit()
 
     @Slot()
     def collect_baseline_button_clicked(self):
@@ -235,7 +237,7 @@ class ProtocolWidget(QWidget):
 
     @Slot(int)
     def handle_baseline_trial(self, result):
-        """Save or discard the most recent baseline trial, depending on what the user selects.
+        """Save/discard the most recent baseline trial, based on user selection.
 
         Parameters
         ----------
@@ -243,13 +245,13 @@ class ProtocolWidget(QWidget):
             result code emitted when `GraphDialog` window is closed, 1 indicates
             user wants to save the trial
         """
+
         if result == 1:
 
-            number_of_baseline_trials = len(self.baseline_data)
+            self.baseline_trial_counter = len(self.baseline_data) + 1
             # Save a copy of the temporary storage list, since clear() on that list will affect references as well
-            self.baseline_data[f"trial {number_of_baseline_trials + 1}"] = self.temporary_data_storage.copy()
-            # Update the counter to display number of trials collected
-            self.baseline_trial_counter.setText(f"Number of baseline trials collected: {number_of_baseline_trials + 1}")
+            self.baseline_data[f"trial {self.baseline_trial_counter}"] = self.temporary_data_storage.copy()
+            self._update_baseline_trial_counter_label()
             # Enable button to set the APA threshold based on collected baseline trials
             self.set_APA_threshold_button.setEnabled(True)
 
