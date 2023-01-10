@@ -186,12 +186,14 @@ class ProtocolWidget(QWidget):
         self.collect_baseline_signal.emit()
         self.finish_baseline_button.setEnabled(True)
         self.collect_baseline_button.setEnabled(False)
+        self.stop_baseline_button.setEnabled(False)
 
     @Slot()
     def finish_baseline_button_clicked(self):
         self.finish_baseline_signal.emit()
         self.collect_baseline_button.setEnabled(True)
         self.finish_baseline_button.setEnabled(False)
+        self.stop_baseline_button.setEnabled(True)
 
         # Open the Graph Dialog
         self.show_baseline_graph()
