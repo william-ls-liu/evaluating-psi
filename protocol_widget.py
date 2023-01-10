@@ -16,16 +16,16 @@ class ProtocolWidget(QWidget):
         a signal that is emitted when `start_baseline_button` is clicked
     stop_baseline_signal : PySide6.QtCore.Signal
         a signal that is emitted when `stop_baseline_button` is clicked
-    collect_baseline_signal : PySide6.QtCore.Signal
-        a signal that is emitted when `collect_baseline_button` is clicked
-    finish_baseline_signal : PySide6.QtCore.Signal
-        a signal that is emitted when  `finish_baseline_button` is clicked
+    connect_signal : PySide6.QtCore.Signal
+        a signal that connects this widget to the data stream from the DAQ
+    disconnect_signal : PySide6.QtCore.Signal
+        a signal that disconnects this widget from the data stream
     """
 
     start_baseline_signal = Signal()
     stop_baseline_signal = Signal()
-    collect_baseline_signal = Signal()
-    finish_baseline_signal = Signal()
+    connect_signal = Signal()
+    disconnect_signal = Signal()
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent=parent)
@@ -194,14 +194,14 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def collect_baseline_button_clicked(self):
-        self.collect_baseline_signal.emit()
+        self.connect_signal.emit()
         self.finish_baseline_button.setEnabled(True)
         self.collect_baseline_button.setEnabled(False)
         self.stop_baseline_button.setEnabled(False)
 
     @Slot()
     def finish_baseline_button_clicked(self):
-        self.finish_baseline_signal.emit()
+        self.disconnect_signal.emit()
         self.collect_baseline_button.setEnabled(True)
         self.finish_baseline_button.setEnabled(False)
         self.stop_baseline_button.setEnabled(True)
@@ -260,7 +260,6 @@ class ProtocolWidget(QWidget):
         """
 
         if result == 1:
-
             self.baseline_trial_counter = len(self.baseline_data) + 1
             # Save a copy of the temporary storage list, since clear() on that list will affect references as well
             self.baseline_data[f"trial {self.baseline_trial_counter}"] = self.temporary_data_storage.copy()

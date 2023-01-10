@@ -60,10 +60,10 @@ class MainWindow(QMainWindow):
         self.protocol_widget.stop_baseline_signal.connect(self.stop_baseline)
 
         # Connect collect baseline button on the protocol widget
-        self.protocol_widget.collect_baseline_signal.connect(self.connect_data_to_protocol_widget)
+        self.protocol_widget.connect_signal.connect(self.connect_data_to_protocol_widget)
 
         # Connect the finish baseline button on the protocol widget
-        self.protocol_widget.finish_baseline_signal.connect(self.disconnect_data_from_protocol_widget)
+        self.protocol_widget.disconnect_signal.connect(self.disconnect_data_from_protocol_widget)
 
         # Connect the closeEvent signal to the worker to ensure safe termination of timers/threads
         self.shutdown_signal.connect(self.data_worker.shutdown)
