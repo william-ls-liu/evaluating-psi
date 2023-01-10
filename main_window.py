@@ -2,7 +2,7 @@
 
 from PySide6.QtCore import Qt, QThread, Signal, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QApplication, QMessageBox
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QApplication
 from plot_widget import PlotWidget
 from data_worker import DataWorker
 from protocol_widget import ProtocolWidget
@@ -12,7 +12,6 @@ class MainWindow(QMainWindow):
     """This class represents the main window of the GUI."""
 
     shutdown_signal = Signal()  # Signal to be emitted when the window is closed
-    ready_to_collect_baseline_signal = Signal()
 
     def __init__(self) -> None:
         super().__init__(parent=None)
@@ -66,9 +65,6 @@ class MainWindow(QMainWindow):
         # Connect the finish baseline button on the protocol widget
         self.protocol_widget.finish_baseline_signal.connect(self.disconnect_data_from_protocol_widget)
 
-        # Connect ready for baseline signal to protocol widget
-        self.ready_to_collect_baseline_signal.connect(self.protocol_widget.ready_to_start_baseline)
-
         # Connect the closeEvent signal to the worker to ensure safe termination of timers/threads
         self.shutdown_signal.connect(self.data_worker.shutdown)
 
@@ -110,20 +106,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def start_baseline(self):
-        """Open a blocking message when the user wants to start collecting the baseline APA."""
-        message_box = QMessageBox(self)
-        message_box.setWindowTitle("Attention!")
-        message_box.setText(
-            "Instruct patient to step off the platform,\n"
-            "then hit the Auto-Zero button on the amplifier.\n"
-            "When you have done this click OK.")
-        message_box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-
-        button = message_box.exec()
-
-        if button == QMessageBox.Ok:
-            self.ready_to_collect_baseline_signal.emit()
-            self.control_bar.record_button.setEnabled(False)
+        self.control_bar.record_button.setEnabled(False)
 
     @Slot()
     def stop_baseline(self):

@@ -118,8 +118,22 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def start_baseline_button_clicked(self):
-        self.start_baseline_signal.emit()
-        self.stop_baseline_button.setEnabled(True)
+        """Open a blocking message when the user wants to start collecting the baseline APA."""
+        message_box = QMessageBox(self)
+        message_box.setWindowTitle("Attention!")
+        message_box.setText(
+            "Instruct patient to step off the platform,\n"
+            "then hit the Auto-Zero button on the amplifier.\n"
+            "When you have done this click OK.")
+        message_box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+
+        button = message_box.exec()
+
+        if button == QMessageBox.Ok:
+            self.start_baseline_signal.emit()
+            self.stop_baseline_button.setEnabled(True)
+            self.collect_baseline_button.setEnabled(True)
+            self.start_baseline_button.setEnabled(False)
 
     @Slot()
     def stop_baseline_button_clicked(self):
@@ -260,11 +274,6 @@ class ProtocolWidget(QWidget):
         """
 
         self.temporary_data_storage.append(data)
-
-    @Slot()
-    def ready_to_start_baseline(self) -> None:
-        self.collect_baseline_button.setEnabled(True)
-        self.start_baseline_button.setEnabled(False)
 
     @Slot()
     def set_APA_threshold(self) -> None:
