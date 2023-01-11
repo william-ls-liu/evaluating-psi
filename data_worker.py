@@ -1,7 +1,7 @@
 # Author: William Liu <liwi@ohsu.edu>
 
 from USB6210 import DAQ
-from PySide6.QtCore import QObject, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, QTimer, Signal, Slot, Qt
 import numpy as np
 import json
 
@@ -48,6 +48,7 @@ class DataWorker(QObject):
 
         # Set-up the timer to sample from the DAQ
         self.sampling_timer = QTimer(parent=self)
+        self.sampling_timer.setTimerType(Qt.PreciseTimer)
         self.sampling_timer.setInterval(0)
         self.sampling_timer.timeout.connect(self.get_data_from_daq)
 
