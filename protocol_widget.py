@@ -213,7 +213,10 @@ class ProtocolWidget(QWidget):
             self._update_baseline_trial_counter_label()
             self.set_APA_threshold_button.setEnabled(False)
             self.threshold = None  # Clear any previously set APA threshold
+            self._update_APA_threshold_label()
         elif ret == QMessageBox.Save:
+            if self.threshold is None:
+                self.set_APA_threshold()
             self.start_trial_button.setEnabled(True)
 
         if ret in {QMessageBox.Discard, QMessageBox.Save, QMessageBox.Yes}:
