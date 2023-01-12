@@ -70,12 +70,9 @@ class DataWorker(QObject):
 
     @Slot()
     def get_data_from_daq(self):
-        """Read 1 sample/channel from the DAQ. Calculate the CoP and add that to the array that is emitted."""
+        """Read 1 sample per channel from the DAQ."""
         data = self.DAQ_device.read()
-        copx = -1 * ((data[4] + (-0.040934 * data[0])) / data[2])
-        copy = (data[3] - (-0.040934 * data[1])) / data[2]
-        data_to_emit = np.append(data, [copx, copy])
-        self.data_signal.emit(data_to_emit)
+        self.data_signal.emit(data)
 
     @Slot()
     def start_sampling(self):
