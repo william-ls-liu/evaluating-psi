@@ -6,6 +6,32 @@ from PySide6.QtCore import Slot, Signal
 from baseline_graph_viewer import GraphDialog
 import numpy as np
 
+# How long (ms) quiet stance lasts before patient is instructed to take a step
+QUIET_STANCE_DURATION = 5000
+
+
+def calculate_force_delta(force: list):
+    """Calculate the change in force relative to quiet stance.
+
+    The relative change is force is found by subtracting the mean of the force
+    during quiet stance from the force values.
+
+    Parameters
+    ----------
+    force : list
+        a list of time-series force data along a single axis
+
+    Returns
+    -------
+    list
+        a list of time-series force data, corrected for quiet stance
+    """
+
+    quiet_stance = force[:QUIET_STANCE_DURATION]
+    force_during_quiet_stance = np.mean(quiet_stance)
+
+    return [f - force_during_quiet_stance for f in force]
+
 
 class ProtocolWidget(QWidget):
     """Sidebar with buttons that control data collection and display progress.
@@ -130,6 +156,10 @@ class ProtocolWidget(QWidget):
         else:
             self.threshold_label.setText(f"APA Threshold: {round(self.threshold, 4)}")
 
+    @Slot(bool)
+    def toggle_start_baseline_button(self, check_state) -> None:
+        self.start_baseline_button.setEnabled(check_state)
+
     @Slot()
     def start_baseline_button_clicked(self):
         """Open a blocking message when the user wants to start collecting the baseline APA."""
@@ -207,9 +237,9 @@ class ProtocolWidget(QWidget):
         self.stop_baseline_button.setEnabled(True)
 
         # Open the Graph Dialog
-        self.show_baseline_graph()
+        self._show_baseline_graph()
 
-    def show_baseline_graph(self):
+    def _show_baseline_graph(self):
         """Display the lateral CoP data from the most recent trial.
 
         Open a dialog window with a graph of the lateral CoP position vs. time.
@@ -217,36 +247,11 @@ class ProtocolWidget(QWidget):
         graph looks.
         """
 
-        cop_xdirection = self.calculate_APA(self.temporary_data_storage)
-        graph_dialog = GraphDialog(data=cop_xdirection, parent=self)
+        mediolateral_force = [row[0] for row in self.temporary_data_storage]
+        corrected_mediolateral_force = calculate_force_delta(mediolateral_force)
+        graph_dialog = GraphDialog(data=corrected_mediolateral_force, parent=self)
         graph_dialog.open()
         graph_dialog.finished.connect(self.handle_baseline_trial)
-
-    def calculate_APA(self, data):
-        """Calculate the relative motion of the lateral CoP and return it.
-
-        The relative motion is the distance the lateral CoP has moved from the
-        starting position. Starting position is defined as the mean CoP during 5
-        seconds of quiet stance.
-
-        Parameters
-        ----------
-        data : list of np.ndarray
-            data from the most recent baseline recording
-
-        Returns
-        -------
-        list
-            a time-series of the relative lateral CoP deviations
-        """
-
-        # Get the lateral CoP data
-        cop_xdirection = [row[8] for row in data]
-        # TODO: get rid of this 5000 magic number, read the settings file and get sample rate, then multiply by 5
-        quiet_stance = cop_xdirection[:5000]  # Get first 5s of trial
-        x_origin = np.mean(quiet_stance)
-
-        return [row[8] - x_origin for row in data]
 
     @Slot(int)
     def handle_baseline_trial(self, result):
@@ -269,10 +274,6 @@ class ProtocolWidget(QWidget):
 
         self.temporary_data_storage.clear()
 
-    @Slot(bool)
-    def toggle_start_baseline_button(self, check_state) -> None:
-        self.start_baseline_button.setEnabled(check_state)
-
     @Slot(np.ndarray)
     def receive_data(self, data: np.ndarray) -> None:
         """Receives data from the `DataWorker` and stores it in a `list`.
@@ -289,22 +290,23 @@ class ProtocolWidget(QWidget):
     def set_APA_threshold(self) -> None:
         """Calculate the APA threshold based on the collected baseline trials.
 
-        For every trial find the maximum lateral deviation of the CoP. Find the
-        mean across all trials to get the average lateral CoP deviation during a
+        For every trial find the maximum mediolateral Force. Find the
+        mean across all trials to get the average mediolateral Force during a
         step. Multiply this by the user-defined `threshold_percentage` to get
         the threshold for an anticipatory postural adjustment (APA).
         """
 
-        maximum_lateral_deviation = list()
+        maximum_mediolateral_force = list()
 
         for trial in self.baseline_data.keys():
 
             trial_data = self.baseline_data[trial].copy()
-            cop_mediolateral = self.calculate_APA(trial_data)
-            maximum_lateral_deviation.append(max(cop_mediolateral, key=abs))
+            mediolateral_force = [row[0] for row in trial_data]
+            corrected_mediolateral_force = calculate_force_delta(mediolateral_force)
+            maximum_mediolateral_force.append(max(corrected_mediolateral_force, key=abs))
 
-        mean_maximum_lateral_deviation = np.mean(maximum_lateral_deviation)
-        self.threshold = self.threshold_percentage * mean_maximum_lateral_deviation / 100
+        mean_maximum_mediolateral_force = np.mean(maximum_mediolateral_force)
+        self.threshold = self.threshold_percentage * mean_maximum_mediolateral_force / 100
         self._update_APA_threshold_label()
 
     @Slot(str)
