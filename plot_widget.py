@@ -45,39 +45,40 @@ AMPLIFIER_RANGE = AmplifierRange(
 # Seconds of recorded data to show
 SECONDS_TO_SHOW = 5
 
+# Z-offset of the force platform, in meters
+ZOFF = -0.040934
+
+
+def calculate_center_of_pressure(fx, fy, fz, mx, my):
+    """Calculate the center of pressure (CoP).
+
+    Parameters
+    ----------
+    fx : float
+        the force along the x axis
+    fy : float
+        the force along the y axis
+    fz : float
+        the force along the z axis
+    mx : float
+        the moment about the x axis
+    my : float
+        the moment about the y axis
+
+    Returns
+    -------
+    tuple
+        (x coordinate of the CoP, y coordinate of the CoP)
+    """
+
+    cop_x = (-1) * ((my + (ZOFF * fx)) / fz)
+    cop_y = ((mx - (ZOFF * fy)) / fz)
+
+    return cop_x, cop_y
+
 
 class PlotWidget(QWidget):
-    """Custom widget that receives data and plots it using pyqtgraph.
-
-    Attributes
-    ----------
-    plots : GraphicsLayoutWidget
-        a pyqtgraph GraphicsLayoutWidget that contains subplots
-    timer : PySide6.QtCore.QTimer
-        timer object, on timeout it updates the graphs with any new data
-    cop_xdirection : list
-        stores center of pressure coordinates in the x-direction
-    cop_ydirection : list
-        stores center of pressure coordinates in the y-direction
-    force_zdirection : list
-        stores the force values in the z-direction
-    emg_tibialis : list
-        stores the voltage values from the EMG placed on the tibialis
-    emg_soleus : list
-        stores the voltage values from the EMG places on the soleus
-
-    Methods
-    -------
-    process_data_from_worker(data: np.ndarray)
-        A Slot. Receives an array of data and stores values in appropriate lists
-    update_plots()
-        A Slot. Called by the timeout of timer. Calls Plots.update to add new data to graphs.
-    start_timer()
-        A Slot that starts timer. QTimers cannot be started/stopped from other threads, but using a signal and slot
-        is threadsafe.
-    stop_timer()
-        A Slot that stops timer.
-    """
+    """Custom widget that receives data and plots it using pyqtgraph."""
 
     def __init__(self, parent=None) -> None:
         """
@@ -95,8 +96,6 @@ class PlotWidget(QWidget):
         self.timer.timeout.connect(self.update_plots)
 
         # Initiate variables to store incoming data from DataWorker
-        # TODO: Get rid of this magic number and use the sample rate multiplied
-        # by however many seconds should be shown
         self._sample_rate = self._read_settings_file()
         samples_to_show = SECONDS_TO_SHOW * self._sample_rate
         self.cop_xdirection = [0 for i in range(samples_to_show)]
@@ -123,11 +122,11 @@ class PlotWidget(QWidget):
 
     @Slot(np.ndarray)
     def process_data_from_worker(self, data: np.ndarray) -> None:
-        """
-        Slot to receive data and store it in appropriate lists.
+        """Slot to receive data and store it in appropriate lists.
 
-        Incoming data is array-like with values [Fx, Fy, Fz, Mx, My, Mz, EMG Tibialis, EMG Soleus, CoP X, CoP Y].
-        Extract individual components of incoming data and add them to their list.
+        Incoming data is array-like with values
+        [Fx, Fy, Fz, Mx, My, Mz, EMG Tibialis, EMG Soleus]. Extract individual
+        components of incoming data and add them to their list.
 
         Parameters
         ----------
@@ -135,10 +134,17 @@ class PlotWidget(QWidget):
             incoming data
         """
 
+        cop_x, cop_y = calculate_center_of_pressure(
+            data[0],
+            data[1],
+            data[2],
+            data[3],
+            data[4]
+        )
         self.cop_xdirection = self.cop_xdirection[1:]
-        self.cop_xdirection.append(data[8])
+        self.cop_xdirection.append(cop_x)
         self.cop_ydirection = self.cop_ydirection[1:]
-        self.cop_ydirection.append(data[9])
+        self.cop_ydirection.append(cop_y)
 
         self.force_zdirection = self.force_zdirection[1:]
         self.force_zdirection.append(data[2])
