@@ -1,6 +1,6 @@
 # Author: William Liu <liwi@ohsu.edu>
 
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QMessageBox, QComboBox, QGridLayout
+from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Slot, Signal, Qt
 from baseline_graph_viewer import GraphDialog
@@ -58,7 +58,7 @@ class ProtocolWidget(QWidget):
 
         # Create a heading for the Widget
         self.progress_label = QLabel(parent=self)
-        self.progress_label.setText("PSI Protocol Collection Status")
+        self.progress_label.setText("Protocol Status")
         self.progress_label.setFont(QFont("Arial", 16, QFont.Bold))
         self.progress_label.setWordWrap(True)
 
@@ -74,7 +74,7 @@ class ProtocolWidget(QWidget):
         self.temporary_data_storage = list()
 
         # Create the parent layout
-        layout = QVBoxLayout()
+        layout = QGridLayout()
 
         # Create layout for the baseline buttons
         baseline_layout = QGridLayout()
@@ -83,11 +83,11 @@ class ProtocolWidget(QWidget):
         threshold_layout = QGridLayout()
 
         # Populate the layout
-        layout.addWidget(self.progress_label)
-        layout.addLayout(baseline_layout)
-        layout.addLayout(threshold_layout)
-        layout.addWidget(self.start_trial_button)
-        layout.addWidget(self.stop_trial_button)
+        layout.addWidget(self.progress_label, 0, 0, Qt.AlignTop | Qt.AlignHCenter)
+        layout.addLayout(baseline_layout, 1, 0)
+        layout.addLayout(threshold_layout, 2, 0)
+        layout.addWidget(self.start_trial_button, 3, 0)
+        layout.addWidget(self.stop_trial_button, 4, 0)
 
         # Populate the baseline and threshold layouts
         self._create_baseline_layout(baseline_layout)
@@ -135,7 +135,7 @@ class ProtocolWidget(QWidget):
         layout.addWidget(self.baseline_trial_counter_label, 3, 0, 1, -1, Qt.AlignTop)
 
     def _create_threshold_layout(self, layout: QGridLayout) -> None:
-        """Create buttons for baseline collection, add them to a layout.
+        """Create buttons for setting/displaying APA threshold.
 
         Parameters
         ----------
