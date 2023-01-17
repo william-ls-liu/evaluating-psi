@@ -2,7 +2,7 @@
 
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QMessageBox, QComboBox, QGridLayout
 from PySide6.QtGui import QFont
-from PySide6.QtCore import Slot, Signal
+from PySide6.QtCore import Slot, Signal, Qt
 from baseline_graph_viewer import GraphDialog
 import numpy as np
 
@@ -132,7 +132,7 @@ class ProtocolWidget(QWidget):
         layout.addWidget(self.stop_baseline_button, 0, 1)
         layout.addWidget(self.collect_baseline_button, 1, 0, 1, 2)
         layout.addWidget(self.finish_baseline_button, 2, 0, 1, 2)
-        layout.addWidget(self.baseline_trial_counter_label, 3, 0, 1, 2)
+        layout.addWidget(self.baseline_trial_counter_label, 3, 0, 1, -1, Qt.AlignTop)
 
     def _create_threshold_layout(self, layout: QGridLayout) -> None:
         """Create buttons for baseline collection, add them to a layout.
@@ -160,13 +160,13 @@ class ProtocolWidget(QWidget):
         # Label for tracking the APA threshold
         self.threshold = None
         self.threshold_label = QLabel(parent=self)
-        self.threshold_label.setFont(QFont("Arial", 14))
+        self.threshold_label.setFont(QFont("Arial", 12))
         self.threshold_label.setWordWrap(True)
         self._update_APA_threshold_label()
 
         layout.addWidget(self.threshold_percentage_entry, 0, 3)
         layout.addWidget(self.threshold_percentage_label, 0, 0, 1, 3)
-        layout.addWidget(self.threshold_label, 1, 0, 1, 2)
+        layout.addWidget(self.threshold_label, 1, 0, 1, -1, Qt.AlignTop)
 
     def _update_baseline_trial_counter_label(self) -> None:
         self.baseline_trial_counter_label.setText(
