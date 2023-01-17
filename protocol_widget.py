@@ -62,25 +62,6 @@ class ProtocolWidget(QWidget):
         self.progress_label.setFont(QFont("Arial", 16, QFont.Bold))
         self.progress_label.setWordWrap(True)
 
-        # Label for tracking the APA threshold
-        self.threshold = None
-        self.threshold_label = QLabel(parent=self)
-        self.threshold_label.setFont(QFont("Arial", 14))
-        self.threshold_label.setWordWrap(True)
-        self._update_APA_threshold_label()
-
-        # ComboBox for specifying % threshold
-        self.threshold_percentage_entry = QComboBox(parent=self)
-        self.threshold_percentage_entry.addItems(['5', '10', '15', '20', '25', '30'])
-        self.threshold_percentage_entry.currentTextChanged.connect(self.update_threshold_percentage)
-        # Initialize to default combo box value
-        self.threshold_percentage = int(self.threshold_percentage_entry.currentText())
-
-        # Button for setting APA threshold
-        self.set_APA_threshold_button = QPushButton(parent=self, text="Set APA Threshold")
-        self.set_APA_threshold_button.setEnabled(False)
-        self.set_APA_threshold_button.clicked.connect(self.set_APA_threshold)
-
         # Create buttons for starting/stopping the protocol
         self.start_trial_button = QPushButton(parent=self, text="Start Trial")
         self.start_trial_button.setEnabled(False)
@@ -98,23 +79,31 @@ class ProtocolWidget(QWidget):
         # Create layout for the baseline buttons
         baseline_layout = QGridLayout()
 
+        # Create a layout for the threshold buttons
+        threshold_layout = QGridLayout()
+
         # Populate the layout
         layout.addWidget(self.progress_label)
         layout.addLayout(baseline_layout)
-        layout.addWidget(self.threshold_percentage_entry)
-        layout.addWidget(self.set_APA_threshold_button)
-        layout.addWidget(self.threshold_label)
+        layout.addLayout(threshold_layout)
         layout.addWidget(self.start_trial_button)
         layout.addWidget(self.stop_trial_button)
 
-        # Populate the baseline layout
+        # Populate the baseline and threshold layouts
         self._create_baseline_layout(baseline_layout)
+        self._create_threshold_layout(threshold_layout)
 
         self.setLayout(layout)
         self.setFixedWidth(300)
 
-    def _create_baseline_layout(self, layout):
-        """Create buttons for baseline collection, add them to a layout."""
+    def _create_baseline_layout(self, layout: QGridLayout) -> None:
+        """Create buttons for baseline collection, add them to a layout.
+
+        Parameters
+        ----------
+        layout : PySide6.QtWidgets.QGridLayout
+            an empty grid layout
+        """
 
         self.start_baseline_button = QPushButton(self, text="Start baseline collection")
         self.start_baseline_button.setEnabled(False)
@@ -145,12 +134,46 @@ class ProtocolWidget(QWidget):
         layout.addWidget(self.finish_baseline_button, 2, 0, 1, 2)
         layout.addWidget(self.baseline_trial_counter_label, 3, 0, 1, 2)
 
-    def _update_baseline_trial_counter_label(self):
+    def _create_threshold_layout(self, layout: QGridLayout) -> None:
+        """Create buttons for baseline collection, add them to a layout.
+
+        Parameters
+        ----------
+        layout : PySide6.QtWidgets.QGridLayout
+            an empty grid layout
+        """
+
+        # ComboBox for specifying % threshold
+        self.threshold_percentage_entry = QComboBox(parent=self)
+        self.threshold_percentage_entry.addItems([str(i*5) for i in range(1, 21)])
+        self.threshold_percentage_entry.currentTextChanged.connect(self.update_threshold_percentage)
+        self.threshold_percentage = int(self.threshold_percentage_entry.currentText())  # Initialize a default value
+
+        # Label for the ComboBox
+        self.threshold_percentage_label = QLabel(parent=self)
+        self.threshold_percentage_label.setFont(QFont("Arial", 12))
+        self.threshold_percentage_label.setWordWrap(True)
+        self.threshold_percentage_label.setText(
+            "Select a % for the threshold:"
+        )
+
+        # Label for tracking the APA threshold
+        self.threshold = None
+        self.threshold_label = QLabel(parent=self)
+        self.threshold_label.setFont(QFont("Arial", 14))
+        self.threshold_label.setWordWrap(True)
+        self._update_APA_threshold_label()
+
+        layout.addWidget(self.threshold_percentage_entry, 0, 3)
+        layout.addWidget(self.threshold_percentage_label, 0, 0, 1, 3)
+        layout.addWidget(self.threshold_label, 1, 0, 1, 2)
+
+    def _update_baseline_trial_counter_label(self) -> None:
         self.baseline_trial_counter_label.setText(
             f"Number of baseline trials collected: {self.baseline_trial_counter}"
         )
 
-    def _update_APA_threshold_label(self):
+    def _update_APA_threshold_label(self) -> None:
         if self.threshold is None:
             self.threshold_label.setText("No baseline threshold set")
         else:
@@ -162,7 +185,12 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def start_baseline_button_clicked(self):
-        """Open a blocking message when the user wants to start collecting the baseline APA."""
+        """Open blocking message when the user starts baseline APA collection.
+
+        Window prompts user to Hardware Zero the force platform. User can also
+        cancel the baseline collection.
+        """
+
         message_box = QMessageBox(self)
         message_box.setWindowTitle("Attention!")
         message_box.setText(
@@ -211,12 +239,11 @@ class ProtocolWidget(QWidget):
             self.baseline_data.clear()
             self.baseline_trial_counter = 0
             self._update_baseline_trial_counter_label()
-            self.set_APA_threshold_button.setEnabled(False)
             self.threshold = None  # Clear any previously set APA threshold
             self._update_APA_threshold_label()
         elif ret == QMessageBox.Save:
             if self.threshold is None:
-                self.set_APA_threshold()
+                self.update_threshold_percentage(self.threshold_percentage_entry.currentText())
             self.start_trial_button.setEnabled(True)
 
         if ret in {QMessageBox.Discard, QMessageBox.Save, QMessageBox.Yes}:
@@ -257,7 +284,7 @@ class ProtocolWidget(QWidget):
         graph_dialog.finished.connect(self.handle_baseline_trial)
 
     @Slot(int)
-    def handle_baseline_trial(self, result):
+    def handle_baseline_trial(self, result: int):
         """Save/discard the most recent baseline trial, based on user selection.
 
         Parameters
@@ -272,8 +299,6 @@ class ProtocolWidget(QWidget):
             # Save a copy of the temporary storage list, since clear() on that list will affect references as well
             self.baseline_data[f"trial {self.baseline_trial_counter}"] = self.temporary_data_storage.copy()
             self._update_baseline_trial_counter_label()
-            # Enable button to set the APA threshold based on collected baseline trials
-            self.set_APA_threshold_button.setEnabled(True)
 
         self.temporary_data_storage.clear()
 
@@ -289,29 +314,33 @@ class ProtocolWidget(QWidget):
 
         self.temporary_data_storage.append(data)
 
-    @Slot()
-    def set_APA_threshold(self) -> None:
+    @Slot(str)
+    def update_threshold_percentage(self, percentage: str) -> None:
         """Calculate the APA threshold based on the collected baseline trials.
 
         For every trial find the maximum mediolateral Force. Find the
         mean across all trials to get the average mediolateral Force during a
         step. Multiply this by the user-defined `threshold_percentage` to get
         the threshold for an anticipatory postural adjustment (APA).
+
+        Parameters
+        ----------
+        percentage : str
+            a string representing the threshold percentage
         """
 
-        maximum_mediolateral_force = list()
-
-        for trial in self.baseline_data.keys():
-
-            trial_data = self.baseline_data[trial].copy()
-            mediolateral_force = [row[0] for row in trial_data]
-            corrected_mediolateral_force = calculate_force_delta(mediolateral_force)
-            maximum_mediolateral_force.append(max(corrected_mediolateral_force, key=abs))
-
-        mean_maximum_mediolateral_force = np.mean(maximum_mediolateral_force)
-        self.threshold = self.threshold_percentage * mean_maximum_mediolateral_force / 100
-        self._update_APA_threshold_label()
-
-    @Slot(str)
-    def update_threshold_percentage(self, percentage: str) -> None:
         self.threshold_percentage = int(percentage)
+
+        if self.baseline_trial_counter != 0:
+            maximum_mediolateral_force = list()
+
+            for trial in self.baseline_data.keys():
+
+                trial_data = self.baseline_data[trial].copy()
+                mediolateral_force = [row[0] for row in trial_data]
+                corrected_mediolateral_force = calculate_force_delta(mediolateral_force)
+                maximum_mediolateral_force.append(max(corrected_mediolateral_force, key=abs))
+
+            mean_maximum_mediolateral_force = np.mean(maximum_mediolateral_force)
+            self.threshold = self.threshold_percentage * mean_maximum_mediolateral_force / 100
+            self._update_APA_threshold_label()
