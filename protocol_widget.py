@@ -1,6 +1,6 @@
 # Author: William Liu <liwi@ohsu.edu>
 
-from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout
+from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout, QCheckBox
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Slot, Signal, Qt
 from baseline_graph_viewer import GraphDialog
@@ -8,6 +8,10 @@ import numpy as np
 
 # How long (ms) quiet stance lasts before patient is instructed to take a step
 QUIET_STANCE_DURATION = 5000
+
+# Default fonts
+DEFAULT_FONT = QFont("Arial", 12)
+DEFAULT_FONT_BOLD = QFont("Arial", 14, QFont.Bold)
 
 
 def calculate_force_delta(force: list):
@@ -59,7 +63,7 @@ class ProtocolWidget(QWidget):
         # Create a heading for the Widget
         self.progress_label = QLabel(parent=self)
         self.progress_label.setText("Protocol Status")
-        self.progress_label.setFont(QFont("Arial", 16, QFont.Bold))
+        self.progress_label.setFont(DEFAULT_FONT_BOLD)
         self.progress_label.setWordWrap(True)
 
         # Create buttons for starting/stopping the protocol
@@ -68,6 +72,10 @@ class ProtocolWidget(QWidget):
 
         self.stop_trial_button = QPushButton(parent=self, text="Stop Trial")
         self.stop_trial_button.setEnabled(False)
+
+        # Create button to enable/disable stimulus
+        self.enable_stimulus_button = QCheckBox(text="Enable stimulus", parent=self)
+        self.enable_stimulus_button.setFont(DEFAULT_FONT)
 
         # Initiate variable to store the baseline data
         self.baseline_data = dict()
@@ -86,8 +94,9 @@ class ProtocolWidget(QWidget):
         layout.addWidget(self.progress_label, 0, 0, Qt.AlignTop | Qt.AlignHCenter)
         layout.addLayout(baseline_layout, 1, 0)
         layout.addLayout(threshold_layout, 2, 0)
-        layout.addWidget(self.start_trial_button, 3, 0)
-        layout.addWidget(self.stop_trial_button, 4, 0)
+        layout.addWidget(self.enable_stimulus_button, 3, 0)
+        layout.addWidget(self.start_trial_button, 4, 0)
+        layout.addWidget(self.stop_trial_button, 5, 0)
 
         # Populate the baseline and threshold layouts
         self._create_baseline_layout(baseline_layout)
@@ -124,7 +133,7 @@ class ProtocolWidget(QWidget):
         # Create a label to keep track of the number of baseline trials
         self.baseline_trial_counter = 0
         self.baseline_trial_counter_label = QLabel(parent=self)
-        self.baseline_trial_counter_label.setFont(QFont("Arial", 14))
+        self.baseline_trial_counter_label.setFont(DEFAULT_FONT)
         self.baseline_trial_counter_label.setWordWrap(True)
         self._update_baseline_trial_counter_label()
 
@@ -151,7 +160,7 @@ class ProtocolWidget(QWidget):
 
         # Label for the ComboBox
         self.threshold_percentage_label = QLabel(parent=self)
-        self.threshold_percentage_label.setFont(QFont("Arial", 12))
+        self.threshold_percentage_label.setFont(DEFAULT_FONT)
         self.threshold_percentage_label.setWordWrap(True)
         self.threshold_percentage_label.setText(
             "Select a % for the threshold:"
@@ -160,7 +169,7 @@ class ProtocolWidget(QWidget):
         # Label for tracking the APA threshold
         self.threshold = None
         self.threshold_label = QLabel(parent=self)
-        self.threshold_label.setFont(QFont("Arial", 12))
+        self.threshold_label.setFont(DEFAULT_FONT)
         self.threshold_label.setWordWrap(True)
         self._update_APA_threshold_label()
 
