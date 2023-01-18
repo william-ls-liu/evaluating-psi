@@ -2,7 +2,7 @@
 
 from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout, QCheckBox
 from PySide6.QtGui import QFont
-from PySide6.QtCore import Slot, Signal, Qt
+from PySide6.QtCore import Slot, Signal, Qt, QTimer
 from baseline_graph_viewer import GraphDialog
 import numpy as np
 
@@ -14,10 +14,27 @@ DEFAULT_FONT = QFont("Arial", 12)
 DEFAULT_FONT_BOLD = QFont("Arial", 14, QFont.Bold)
 
 
-def calculate_force_delta(force: list):
+def get_mediolateral_force(data: list) -> list:
+    """Extract the force along the x axis (mediolateral) and return it.
+
+    Parameters
+    ----------
+    data : list
+        list of raw data for all channels
+
+    Returns
+    -------
+    list
+        list of force data along the x axis
+    """
+
+    return [row[2] for row in data]
+
+
+def calculate_force_delta(force: list) -> list:
     """Calculate the change in force relative to quiet stance.
 
-    The relative change is force is found by subtracting the mean of the force
+    The relative change of force is found by subtracting the mean of the force
     during quiet stance from the force values.
 
     Parameters
@@ -42,19 +59,19 @@ class ProtocolWidget(QWidget):
 
     Attributes
     ----------
-    start_baseline_signal : PySide6.QtCore.Signal
-        a signal that is emitted when `start_baseline_button` is clicked
-    stop_baseline_signal : PySide6.QtCore.Signal
-        a signal that is emitted when `stop_baseline_button` is clicked
+    disable_record_button_signal : PySide6.QtCore.Signal
+        a signal to disable the recording button
+    enable_record_button_signal : PySide6.QtCore.Signal
+        a signal to enable the recording button
     connect_signal : PySide6.QtCore.Signal
         a signal that connects this widget to the data stream from the DAQ
     disconnect_signal : PySide6.QtCore.Signal
         a signal that disconnects this widget from the data stream
     """
 
-    start_baseline_signal = Signal()
-    stop_baseline_signal = Signal()
-    connect_signal = Signal()
+    disable_record_button_signal = Signal()
+    enable_record_button_signal = Signal()
+    connect_signal = Signal(str)
     disconnect_signal = Signal()
 
     def __init__(self, parent: QWidget) -> None:
@@ -69,9 +86,11 @@ class ProtocolWidget(QWidget):
         # Create buttons for starting/stopping the protocol
         self.start_trial_button = QPushButton(parent=self, text="Start Trial")
         self.start_trial_button.setEnabled(False)
+        self.start_trial_button.clicked.connect(self.start_trial_button_clicked)
 
         self.stop_trial_button = QPushButton(parent=self, text="Stop Trial")
         self.stop_trial_button.setEnabled(False)
+        self.stop_trial_button.clicked.connect(self.stop_trial_button_clicked)
 
         # Create button to enable/disable stimulus
         self.enable_stimulus_button = QCheckBox(text="Enable stimulus", parent=self)
@@ -211,7 +230,7 @@ class ProtocolWidget(QWidget):
         button = message_box.exec()
 
         if button == QMessageBox.Ok:
-            self.start_baseline_signal.emit()
+            self.disable_record_button_signal.emit()
             self.stop_baseline_button.setEnabled(True)
             self.collect_baseline_button.setEnabled(True)
             self.start_baseline_button.setEnabled(False)
@@ -259,11 +278,11 @@ class ProtocolWidget(QWidget):
             self.start_baseline_button.setEnabled(True)
             self.stop_baseline_button.setEnabled(False)
             self.collect_baseline_button.setEnabled(False)
-            self.stop_baseline_signal.emit()
+            self.enable_record_button_signal.emit()
 
     @Slot()
     def collect_baseline_button_clicked(self):
-        self.connect_signal.emit()
+        self.connect_signal.emit("baseline")
         self.finish_baseline_button.setEnabled(True)
         self.collect_baseline_button.setEnabled(False)
         self.stop_baseline_button.setEnabled(False)
@@ -286,7 +305,7 @@ class ProtocolWidget(QWidget):
         graph looks.
         """
 
-        mediolateral_force = [row[0] for row in self.temporary_data_storage]
+        mediolateral_force = get_mediolateral_force(self.temporary_data_storage)
         corrected_mediolateral_force = calculate_force_delta(mediolateral_force)
         graph_dialog = GraphDialog(data=corrected_mediolateral_force, parent=self)
         graph_dialog.open()
@@ -311,6 +330,18 @@ class ProtocolWidget(QWidget):
 
         self.temporary_data_storage.clear()
 
+    @Slot()
+    def start_trial_button_clicked(self) -> None:
+        self.stop_trial_button.setEnabled(True)
+        self.start_trial_button.setEnabled(False)
+        self.collect_quiet_stance()
+
+    @Slot()
+    def stop_trial_button_clicked(self) -> None:
+        self.start_trial_button.setEnabled(True)
+        self.stop_trial_button.setEnabled(False)
+        self.disconnect_signal.emit()
+
     @Slot(np.ndarray)
     def receive_data(self, data: np.ndarray) -> None:
         """Receives data from the `DataWorker` and stores it in a `list`.
@@ -322,6 +353,18 @@ class ProtocolWidget(QWidget):
         """
 
         self.temporary_data_storage.append(data)
+
+    @Slot(np.ndarray)
+    def receive_step_data(self, data: np.ndarray) -> None:
+        """Receives data from the `DataWorker` and compares to APA threshold.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            array of raw data read from the DAQ
+        """
+
+        print("step data", data)
 
     @Slot(str)
     def update_threshold_percentage(self, percentage: str) -> None:
@@ -346,10 +389,34 @@ class ProtocolWidget(QWidget):
             for trial in self.baseline_data.keys():
 
                 trial_data = self.baseline_data[trial].copy()
-                mediolateral_force = [row[0] for row in trial_data]
+                mediolateral_force = get_mediolateral_force(trial_data)
                 corrected_mediolateral_force = calculate_force_delta(mediolateral_force)
                 maximum_mediolateral_force.append(max(corrected_mediolateral_force, key=abs))
 
             mean_maximum_mediolateral_force = np.mean(maximum_mediolateral_force)
             self.threshold = self.threshold_percentage * mean_maximum_mediolateral_force / 100
             self._update_APA_threshold_label()
+
+    def collect_quiet_stance(self) -> None:
+        """Collect quiet stance before stepping trial."""
+
+        quiet_stance_timer = QTimer(parent=self)
+        quiet_stance_timer.setTimerType(Qt.PreciseTimer)
+        quiet_stance_timer.setInterval(QUIET_STANCE_DURATION)
+        quiet_stance_timer.setSingleShot(True)
+        quiet_stance_timer.timeout.connect(self.disconnect_signal)
+        quiet_stance_timer.timeout.connect(self.calculate_quiet_stance)
+        quiet_stance_timer.start()
+        self.connect_signal.emit("quiet stance")
+
+    @Slot()
+    def calculate_quiet_stance(self) -> None:
+        """Calculate the mean mediolateral force during quiet stance."""
+
+        self._quiet_stance_force = np.mean(get_mediolateral_force(self.temporary_data_storage))
+        self.temporary_data_storage.clear()
+        wait_timer = QTimer(parent=self)
+        wait_timer.setSingleShot(True)
+        wait_timer.setInterval(1000)
+        wait_timer.timeout.connect(lambda: self.connect_signal.emit("protocol"))
+        wait_timer.start()
