@@ -116,13 +116,24 @@ class MainWindow(QMainWindow):
     def enable_record_button(self):
         self.control_bar.record_button.setEnabled(True)
 
-    @Slot()
-    def connect_data_to_protocol_widget(self):
-        self.data_worker.data_signal.connect(self.protocol_widget.receive_data)
+    @Slot(str)
+    def connect_data_to_protocol_widget(self, message):
+        """Connect data from `DataWorker` to appropriate slot.
+
+        Parameters
+        ----------
+        message : str
+            a string specifying which slot to connect
+        """
+
+        if message in {"baseline", "quiet stance"}:
+            self.data_worker.data_signal.connect(self.protocol_widget.receive_data)
+        else:
+            self.data_worker.data_signal.connect(self.protocol_widget.receive_step_data)
 
     @Slot()
     def disconnect_data_from_protocol_widget(self):
-        self.data_worker.data_signal.disconnect(self.protocol_widget.receive_data)
+        self.data_worker.data_signal.disconnect()
 
     @Slot()
     def control_graphs_for_protocol(self, check_state):
