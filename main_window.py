@@ -54,10 +54,10 @@ class MainWindow(QMainWindow):
         self.data_worker.data_signal.connect(self.plot_widget.process_data_from_worker)
 
         # Connect start baseline button on the protocol widget
-        self.protocol_widget.start_baseline_signal.connect(self.start_baseline)
+        self.protocol_widget.disable_record_button_signal.connect(self.disable_record_button)
 
         # Connect the stop baseline button
-        self.protocol_widget.stop_baseline_signal.connect(self.stop_baseline)
+        self.protocol_widget.enable_record_button_signal.connect(self.enable_record_button)
 
         # Connect collect baseline button on the protocol widget
         self.protocol_widget.connect_signal.connect(self.connect_data_to_protocol_widget)
@@ -109,11 +109,11 @@ class MainWindow(QMainWindow):
         event.accept()
 
     @Slot()
-    def start_baseline(self):
+    def disable_record_button(self):
         self.control_bar.record_button.setEnabled(False)
 
     @Slot()
-    def stop_baseline(self):
+    def enable_record_button(self):
         self.control_bar.record_button.setEnabled(True)
 
     @Slot()
