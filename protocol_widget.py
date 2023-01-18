@@ -13,6 +13,14 @@ QUIET_STANCE_DURATION = 5000
 DEFAULT_FONT = QFont("Arial", 12)
 DEFAULT_FONT_BOLD = QFont("Arial", 14, QFont.Bold)
 
+# Indexes of platform axes
+FX = 0
+FY = 1
+FZ = 2
+MX = 3
+MY = 4
+MZ = 5
+
 
 def get_mediolateral_force(data: list) -> list:
     """Extract the force along the x axis (mediolateral) and return it.
@@ -28,7 +36,7 @@ def get_mediolateral_force(data: list) -> list:
         list of force data along the x axis
     """
 
-    return [row[2] for row in data]
+    return [row[FZ] for row in data]
 
 
 def calculate_force_delta(force: list) -> list:
@@ -72,7 +80,7 @@ class ProtocolWidget(QWidget):
     disable_record_button_signal = Signal()
     enable_record_button_signal = Signal()
     connect_signal = Signal(str)
-    disconnect_signal = Signal()
+    disconnect_signal = Signal(str)
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent=parent)
@@ -289,7 +297,7 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def finish_baseline_button_clicked(self):
-        self.disconnect_signal.emit()
+        self.disconnect_signal.emit("baseline")
         self.collect_baseline_button.setEnabled(True)
         self.finish_baseline_button.setEnabled(False)
         self.stop_baseline_button.setEnabled(True)
@@ -332,7 +340,6 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def start_trial_button_clicked(self) -> None:
-        self.stop_trial_button.setEnabled(True)
         self.start_trial_button.setEnabled(False)
         self.collect_quiet_stance()
 
@@ -340,7 +347,7 @@ class ProtocolWidget(QWidget):
     def stop_trial_button_clicked(self) -> None:
         self.start_trial_button.setEnabled(True)
         self.stop_trial_button.setEnabled(False)
-        self.disconnect_signal.emit()
+        self.disconnect_signal.emit("step")
 
     @Slot(np.ndarray)
     def receive_data(self, data: np.ndarray) -> None:
@@ -364,7 +371,7 @@ class ProtocolWidget(QWidget):
             array of raw data read from the DAQ
         """
 
-        print("step data", data)
+        self.temporary_data_storage.append(data)
 
     @Slot(str)
     def update_threshold_percentage(self, percentage: str) -> None:
@@ -404,8 +411,9 @@ class ProtocolWidget(QWidget):
         quiet_stance_timer.setTimerType(Qt.PreciseTimer)
         quiet_stance_timer.setInterval(QUIET_STANCE_DURATION)
         quiet_stance_timer.setSingleShot(True)
-        quiet_stance_timer.timeout.connect(self.disconnect_signal)
+        quiet_stance_timer.timeout.connect(lambda: self.disconnect_signal.emit("quiet stance"))
         quiet_stance_timer.timeout.connect(self.calculate_quiet_stance)
+        quiet_stance_timer.timeout.connect(lambda: self.stop_trial_button.setEnabled(True))
         quiet_stance_timer.start()
         self.connect_signal.emit("quiet stance")
 
@@ -418,5 +426,5 @@ class ProtocolWidget(QWidget):
         wait_timer = QTimer(parent=self)
         wait_timer.setSingleShot(True)
         wait_timer.setInterval(1000)
-        wait_timer.timeout.connect(lambda: self.connect_signal.emit("protocol"))
+        wait_timer.timeout.connect(lambda: self.connect_signal.emit("step"))
         wait_timer.start()

@@ -131,9 +131,12 @@ class MainWindow(QMainWindow):
         else:
             self.data_worker.data_signal.connect(self.protocol_widget.receive_step_data)
 
-    @Slot()
-    def disconnect_data_from_protocol_widget(self):
-        self.data_worker.data_signal.disconnect()
+    @Slot(str)
+    def disconnect_data_from_protocol_widget(self, message):
+        if message in {"baseline", "quiet stance"}:
+            self.data_worker.data_signal.disconnect(self.protocol_widget.receive_data)
+        else:
+            self.data_worker.data_signal.disconnect(self.protocol_widget.receive_step_data)
 
     @Slot()
     def control_graphs_for_protocol(self, check_state):
