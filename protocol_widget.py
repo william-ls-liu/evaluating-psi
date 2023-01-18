@@ -242,6 +242,7 @@ class ProtocolWidget(QWidget):
             self.stop_baseline_button.setEnabled(True)
             self.collect_baseline_button.setEnabled(True)
             self.start_baseline_button.setEnabled(False)
+            self.start_trial_button.setEnabled(False)
 
     @Slot()
     def stop_baseline_button_clicked(self):
@@ -277,6 +278,7 @@ class ProtocolWidget(QWidget):
             self._update_baseline_trial_counter_label()
             self.threshold = None  # Clear any previously set APA threshold
             self._update_APA_threshold_label()
+            self.start_trial_button.setEnabled(False)
         elif ret == QMessageBox.Save:
             if self.threshold is None:
                 self.update_threshold_percentage(self.threshold_percentage_entry.currentText())
@@ -341,6 +343,7 @@ class ProtocolWidget(QWidget):
     @Slot()
     def start_trial_button_clicked(self) -> None:
         self.start_trial_button.setEnabled(False)
+        self.disable_record_button_signal.emit()
         self.collect_quiet_stance()
 
     @Slot()
@@ -348,6 +351,7 @@ class ProtocolWidget(QWidget):
         self.start_trial_button.setEnabled(True)
         self.stop_trial_button.setEnabled(False)
         self.disconnect_signal.emit("step")
+        self.enable_record_button_signal.emit()
 
     @Slot(np.ndarray)
     def receive_data(self, data: np.ndarray) -> None:
