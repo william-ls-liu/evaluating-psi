@@ -218,6 +218,7 @@ class ProtocolWidget(QWidget):
     @Slot(bool)
     def toggle_start_baseline_button(self, check_state) -> None:
         self.start_baseline_button.setEnabled(check_state)
+        self.stop_baseline_button.setEnabled(check_state)
 
     @Slot()
     def start_baseline_button_clicked(self):
@@ -292,10 +293,9 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def collect_baseline_button_clicked(self):
-        self.connect_signal.emit("baseline")
-        self.finish_baseline_button.setEnabled(True)
         self.collect_baseline_button.setEnabled(False)
         self.stop_baseline_button.setEnabled(False)
+        self.collect_quiet_stance("baseline")
 
     @Slot()
     def finish_baseline_button_clicked(self):
@@ -344,7 +344,7 @@ class ProtocolWidget(QWidget):
     def start_trial_button_clicked(self) -> None:
         self.start_trial_button.setEnabled(False)
         self.disable_record_button_signal.emit()
-        self.collect_quiet_stance()
+        self.collect_quiet_stance("quiet stance")
 
     @Slot()
     def stop_trial_button_clicked(self) -> None:
@@ -408,18 +408,29 @@ class ProtocolWidget(QWidget):
             self.threshold = self.threshold_percentage * mean_maximum_mediolateral_force / 100
             self._update_APA_threshold_label()
 
-    def collect_quiet_stance(self) -> None:
-        """Collect quiet stance before stepping trial."""
+    def collect_quiet_stance(self, stage: str) -> None:
+        """Collect data for `QUIET_STANCE_DURATION` amount of time.
+
+        Parameters
+        ----------
+        stage : str
+            a string representing the current stage of the protocol
+        """
 
         quiet_stance_timer = QTimer(parent=self)
         quiet_stance_timer.setTimerType(Qt.PreciseTimer)
         quiet_stance_timer.setInterval(QUIET_STANCE_DURATION)
         quiet_stance_timer.setSingleShot(True)
-        quiet_stance_timer.timeout.connect(lambda: self.disconnect_signal.emit("quiet stance"))
-        quiet_stance_timer.timeout.connect(self.calculate_quiet_stance)
-        quiet_stance_timer.timeout.connect(lambda: self.stop_trial_button.setEnabled(True))
+
+        if stage == "baseline":
+            quiet_stance_timer.timeout.connect(lambda: self.finish_baseline_button.setEnabled(True))
+        elif stage == "quiet stance":
+            quiet_stance_timer.timeout.connect(self.calculate_quiet_stance)
+            quiet_stance_timer.timeout.connect(lambda: self.stop_trial_button.setEnabled(True))
+            quiet_stance_timer.timeout.connect(lambda: self.disconnect_signal.emit(stage))
+
         quiet_stance_timer.start()
-        self.connect_signal.emit("quiet stance")
+        self.connect_signal.emit(stage)
 
     @Slot()
     def calculate_quiet_stance(self) -> None:
