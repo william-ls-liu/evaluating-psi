@@ -117,23 +117,23 @@ class MainWindow(QMainWindow):
         self.control_bar.record_button.setEnabled(True)
 
     @Slot(str)
-    def connect_data_to_protocol_widget(self, message):
+    def connect_data_to_protocol_widget(self, stage):
         """Connect data from `DataWorker` to appropriate slot.
 
         Parameters
         ----------
-        message : str
+        stage : str
             a string specifying which slot to connect
         """
 
-        if message in {"baseline", "quiet stance"}:
+        if stage in {"baseline", "quiet stance"}:
             self.data_worker.data_signal.connect(self.protocol_widget.receive_data)
         else:
             self.data_worker.data_signal.connect(self.protocol_widget.receive_step_data)
 
     @Slot(str)
-    def disconnect_data_from_protocol_widget(self, message):
-        if message in {"baseline", "quiet stance"}:
+    def disconnect_data_from_protocol_widget(self, stage):
+        if stage in {"baseline", "quiet stance"}:
             self.data_worker.data_signal.disconnect(self.protocol_widget.receive_data)
         else:
             self.data_worker.data_signal.disconnect(self.protocol_widget.receive_step_data)
