@@ -3,7 +3,7 @@
 from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout, QCheckBox
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Slot, Signal, Qt, QTimer
-from baseline_graph_viewer import GraphDialog
+from baseline_graph_viewer import BaselineGraphDialog
 import numpy as np
 
 # How long (ms) quiet stance lasts before patient is instructed to take a step
@@ -36,7 +36,7 @@ def get_mediolateral_force(data: list) -> list:
         list of force data along the x axis
     """
 
-    return [row[FZ] for row in data]
+    return [row[FX] for row in data]
 
 
 def calculate_force_delta(force: list) -> list:
@@ -295,7 +295,7 @@ class ProtocolWidget(QWidget):
     def collect_baseline_button_clicked(self):
         self.collect_baseline_button.setEnabled(False)
         self.stop_baseline_button.setEnabled(False)
-        self.collect_quiet_stance("baseline")
+        self._collect_quiet_stance("baseline")
 
     @Slot()
     def finish_baseline_button_clicked(self):
@@ -317,7 +317,7 @@ class ProtocolWidget(QWidget):
 
         mediolateral_force = get_mediolateral_force(self.temporary_data_storage)
         corrected_mediolateral_force = calculate_force_delta(mediolateral_force)
-        graph_dialog = GraphDialog(data=corrected_mediolateral_force, parent=self)
+        graph_dialog = BaselineGraphDialog(data=corrected_mediolateral_force, parent=self)
         graph_dialog.open()
         graph_dialog.finished.connect(self.handle_baseline_trial)
 
@@ -344,7 +344,7 @@ class ProtocolWidget(QWidget):
     def start_trial_button_clicked(self) -> None:
         self.start_trial_button.setEnabled(False)
         self.disable_record_button_signal.emit()
-        self.collect_quiet_stance("quiet stance")
+        self._collect_quiet_stance("quiet stance")
 
     @Slot()
     def stop_trial_button_clicked(self) -> None:
@@ -408,7 +408,7 @@ class ProtocolWidget(QWidget):
             self.threshold = self.threshold_percentage * mean_maximum_mediolateral_force / 100
             self._update_APA_threshold_label()
 
-    def collect_quiet_stance(self, stage: str) -> None:
+    def _collect_quiet_stance(self, stage: str) -> None:
         """Collect data for `QUIET_STANCE_DURATION` amount of time.
 
         Parameters

@@ -7,7 +7,7 @@ from matplotlib.figure import Figure
 matplotlib.use('Qt5Agg')
 
 
-class GraphDialog(QDialog):
+class BaselineGraphDialog(QDialog):
     """This class represents a dialog window that shows a MPL graph."""
     def __init__(self, data, parent=None):
         super().__init__(parent)
