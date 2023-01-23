@@ -3,7 +3,7 @@
 from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout, QCheckBox
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Slot, Signal, Qt, QTimer
-from baseline_graph_viewer import BaselineGraphDialog
+from graph_viewer import BaselineGraphDialog
 import numpy as np
 
 # How long (ms) quiet stance lasts before patient is instructed to take a step
