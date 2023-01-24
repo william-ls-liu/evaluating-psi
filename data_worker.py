@@ -91,6 +91,12 @@ class DataWorker(QObject):
             self.task_is_running = False
 
     @Slot()
+    def ttl(self):
+        """Trigger the TTL output."""
+        self.DAQ_device.ttl()
+        print("stimmed")
+
+    @Slot()
     def shutdown(self):
         """This methods handles the termination of the DAQ processes."""
         if self.task_is_running:
