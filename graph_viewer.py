@@ -48,11 +48,13 @@ class GraphDialog(QDialog):
 class BaselineGraphDialog(GraphDialog):
     """A dialog window that shows a baseline trial graph."""
 
-    def __init__(self, data, parent=None):
+    def __init__(self, data, peaks, valleys, parent=None):
         super().__init__("Baseline APA Viewer", parent)
 
         self.mediolateral_force_graph = self.canvas.figure.add_subplot(1, 1, 1)
         self.mediolateral_force_graph.plot(data)
+        self.mediolateral_force_graph.plot(peaks, data[peaks], "x")
+        self.mediolateral_force_graph.plot(valleys, data[valleys], "x")
         self.mediolateral_force_graph.set_title("Mediolateral Force (N)")
 
 
