@@ -82,6 +82,7 @@ class ProtocolWidget(QWidget):
     enable_record_button_signal = Signal()
     connect_signal = Signal(str)
     disconnect_signal = Signal(str)
+    stimulus_signal = Signal()
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent=parent)
@@ -110,12 +111,17 @@ class ProtocolWidget(QWidget):
         # Create button to enable/disable stimulus
         self.enable_stimulus_button = QCheckBox(text="Enable stimulus", parent=self)
         self.enable_stimulus_button.setFont(DEFAULT_FONT)
+        self.enable_stimulus_button.stateChanged.connect(self.enable_stimulus)
 
         # Initiate variable to store the baseline data
         self.baseline_data = dict()
         self.incoming_data_storage = list()
         self.quiet_stance_data = None
         self.trial_data = dict()
+
+        # Initiate variables to store state of stimulator
+        self.APA_detected = False
+        self.stimulus_enabled = self.enable_stimulus_button.isChecked()
 
         # Create the parent layout
         layout = QGridLayout()
@@ -163,7 +169,7 @@ class ProtocolWidget(QWidget):
         self.collect_baseline_button.setEnabled(False)
         self.collect_baseline_button.clicked.connect(self.collect_baseline_button_clicked)
 
-        self.finish_baseline_button = QPushButton(parent=self, text="Finish baseline collection")
+        self.finish_baseline_button = QPushButton(parent=self, text="Finish step")
         self.finish_baseline_button.setEnabled(False)
         self.finish_baseline_button.clicked.connect(self.finish_baseline_button_clicked)
 
@@ -383,10 +389,11 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def stop_trial_button_clicked(self) -> None:
-        self.start_trial_button.setEnabled(True)
-        self.stop_trial_button.setEnabled(False)
         self.disconnect_signal.emit("step")
         self.enable_record_button_signal.emit()
+        self.start_trial_button.setEnabled(True)
+        self.stop_trial_button.setEnabled(False)
+        self.APA_detected = False
 
         # Open the GraphDialog
         self._show_step_graph()
@@ -412,6 +419,11 @@ class ProtocolWidget(QWidget):
 
         self.incoming_data_storage.clear()
 
+    @Slot(int)
+    def enable_stimulus(self) -> None:
+        self.stimulus_enabled = self.enable_stimulus_button.isChecked()
+        print(self.stimulus_enabled)
+
     @Slot(np.ndarray)
     def receive_data(self, data: np.ndarray) -> None:
         """Receives data from the `DataWorker` and stores it in a `list`.
@@ -434,9 +446,12 @@ class ProtocolWidget(QWidget):
             array of raw data read from the DAQ
         """
 
-        # if ML force exceeds threshold:
-        #   trigger stimulus
-        #   disable stimulus
+        if self.APA_detected is False:
+            if abs(data[FX] - self._quiet_stance_force) > abs(self.threshold):
+                if self.stimulus_enabled:
+                    self.stimulus_signal.emit()
+                self.APA_detected = True
+
         self.incoming_data_storage.append(data)
 
     @Slot(str)
