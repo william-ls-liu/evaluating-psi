@@ -137,6 +137,8 @@ class DAQ:
     def ttl(self):
         """Generate the TTL pulse at the counter terminal."""
         self.counter.start()
+        self.counter.wait_until_done()
+        self.counter.stop()
 
     def get_sample_rate(self):
         """Getter for the sample rate."""
