@@ -3,11 +3,12 @@
 from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout, QCheckBox
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Slot, Signal, Qt, QTimer
-from graph_viewer import BaselineGraphDialog
+from graph_viewer import BaselineGraphDialog, StepGraphDialog
 import numpy as np
+from scipy.signal import find_peaks
 
 # How long (ms) quiet stance lasts before patient is instructed to take a step
-QUIET_STANCE_DURATION = 5000
+QUIET_STANCE_DURATION = 5_000
 
 # Default fonts
 DEFAULT_FONT = QFont("Arial", 12)
@@ -39,7 +40,7 @@ def get_mediolateral_force(data: list) -> list:
     return [row[FX] for row in data]
 
 
-def calculate_force_delta(force: list) -> list:
+def calculate_force_delta(force: list) -> np.ndarray:
     """Calculate the change in force relative to quiet stance.
 
     The relative change of force is found by subtracting the mean of the force
@@ -52,14 +53,14 @@ def calculate_force_delta(force: list) -> list:
 
     Returns
     -------
-    list
-        a list of time-series force data, corrected for quiet stance
+    np.ndarray
+        an array of time-series force data, corrected for quiet stance
     """
 
     quiet_stance = force[:QUIET_STANCE_DURATION]
     force_during_quiet_stance = np.mean(quiet_stance)
 
-    return [f - force_during_quiet_stance for f in force]
+    return np.array([f - force_during_quiet_stance for f in force])
 
 
 class ProtocolWidget(QWidget):
@@ -100,13 +101,21 @@ class ProtocolWidget(QWidget):
         self.stop_trial_button.setEnabled(False)
         self.stop_trial_button.clicked.connect(self.stop_trial_button_clicked)
 
+        # Create label to track number of collected trials
+        self.trial_counter = 0
+        self.trial_counter_label = QLabel(parent=self)
+        self.trial_counter_label.setFont(DEFAULT_FONT)
+        self._update_trial_counter_label()
+
         # Create button to enable/disable stimulus
         self.enable_stimulus_button = QCheckBox(text="Enable stimulus", parent=self)
         self.enable_stimulus_button.setFont(DEFAULT_FONT)
 
         # Initiate variable to store the baseline data
         self.baseline_data = dict()
-        self.temporary_data_storage = list()
+        self.incoming_data_storage = list()
+        self.quiet_stance_data = None
+        self.trial_data = dict()
 
         # Create the parent layout
         layout = QGridLayout()
@@ -124,6 +133,7 @@ class ProtocolWidget(QWidget):
         layout.addWidget(self.enable_stimulus_button, 3, 0)
         layout.addWidget(self.start_trial_button, 4, 0)
         layout.addWidget(self.stop_trial_button, 5, 0)
+        layout.addWidget(self.trial_counter_label, 6, 0, Qt.AlignTop)
 
         # Populate the baseline and threshold layouts
         self._create_baseline_layout(baseline_layout)
@@ -214,6 +224,11 @@ class ProtocolWidget(QWidget):
             self.threshold_label.setText("No baseline threshold set")
         else:
             self.threshold_label.setText(f"APA Threshold: {round(self.threshold, 4)}")
+
+    def _update_trial_counter_label(self) -> None:
+        self.trial_counter_label.setText(
+            f"Number of trials collected: {self.trial_counter}"
+        )
 
     @Slot(bool)
     def toggle_start_baseline_button(self, check_state) -> None:
@@ -308,21 +323,31 @@ class ProtocolWidget(QWidget):
         self._show_baseline_graph()
 
     def _show_baseline_graph(self):
-        """Display the lateral CoP data from the most recent trial.
+        """Display the mediolateral force data from the most recent trial.
 
         Open a dialog window with a graph of the lateral CoP position vs. time.
         User can choose to save the trial or discard it, depending on how the
         graph looks.
         """
 
-        mediolateral_force = get_mediolateral_force(self.temporary_data_storage)
+        mediolateral_force = get_mediolateral_force(self.incoming_data_storage)
         corrected_mediolateral_force = calculate_force_delta(mediolateral_force)
-        graph_dialog = BaselineGraphDialog(data=corrected_mediolateral_force, parent=self)
+        peaks, _ = find_peaks(corrected_mediolateral_force, height=10, prominence=10)
+        valleys, _ = find_peaks(-corrected_mediolateral_force, height=10, prominence=10)
+        graph_dialog = BaselineGraphDialog(corrected_mediolateral_force, peaks, valleys, parent=self)
         graph_dialog.open()
-        graph_dialog.finished.connect(self.handle_baseline_trial)
+        graph_dialog.finished.connect(
+            lambda result: self.handle_baseline_trial(result, corrected_mediolateral_force, peaks, valleys)
+        )
 
     @Slot(int)
-    def handle_baseline_trial(self, result: int):
+    def handle_baseline_trial(
+        self,
+        result: int,
+        corrected_mediolateral_force: np.ndarray,
+        peaks: np.ndarray,
+        valleys: np.ndarray
+    ):
         """Save/discard the most recent baseline trial, based on user selection.
 
         Parameters
@@ -330,15 +355,25 @@ class ProtocolWidget(QWidget):
         result : int
             result code emitted when `GraphDialog` window is closed, 1 indicates
             user wants to save the trial
+        corrected_mediolateral_force : np.ndarray
+            array of corrected mediolateral force data
+        peaks : np.ndarray
+            array containing indexes of peaks in mediolateral force data
+        valleys : np.ndarray
+            array containing indexes of valleys in mediolateral force data
         """
 
         if result == 1:
-            self.baseline_trial_counter = len(self.baseline_data) + 1
-            # Save a copy of the temporary storage list, since clear() on that list will affect references as well
-            self.baseline_data[f"trial {self.baseline_trial_counter}"] = self.temporary_data_storage.copy()
+            self.baseline_trial_counter += 1
+            if peaks[0] < valleys[0]:
+                max_force_during_apa = corrected_mediolateral_force[peaks[0]]
+            else:
+                max_force_during_apa = corrected_mediolateral_force[valleys[0]]
+
+            self.baseline_data[f"trial {self.baseline_trial_counter}"] = max_force_during_apa
             self._update_baseline_trial_counter_label()
 
-        self.temporary_data_storage.clear()
+        self.incoming_data_storage.clear()
 
     @Slot()
     def start_trial_button_clicked(self) -> None:
@@ -353,6 +388,30 @@ class ProtocolWidget(QWidget):
         self.disconnect_signal.emit("step")
         self.enable_record_button_signal.emit()
 
+        # Open the GraphDialog
+        self._show_step_graph()
+
+    def _show_step_graph(self):
+        """Open a window with graphs of the data collected during a step trial.
+
+        User has the choice to save the trial or discard it, based on how the
+        data looks.
+        """
+
+        graph_dialog = StepGraphDialog(self.incoming_data_storage, parent=self)
+        graph_dialog.open()
+        graph_dialog.finished.connect(self.handle_step_trial)
+
+    @Slot(int)
+    def handle_step_trial(self, result: int):
+        """"""
+
+        if result == 1:
+            self.trial_counter += 1
+            self._update_trial_counter_label()
+
+        self.incoming_data_storage.clear()
+
     @Slot(np.ndarray)
     def receive_data(self, data: np.ndarray) -> None:
         """Receives data from the `DataWorker` and stores it in a `list`.
@@ -363,7 +422,7 @@ class ProtocolWidget(QWidget):
             array sent from `DataWorker`
         """
 
-        self.temporary_data_storage.append(data)
+        self.incoming_data_storage.append(data)
 
     @Slot(np.ndarray)
     def receive_step_data(self, data: np.ndarray) -> None:
@@ -375,7 +434,10 @@ class ProtocolWidget(QWidget):
             array of raw data read from the DAQ
         """
 
-        self.temporary_data_storage.append(data)
+        # if ML force exceeds threshold:
+        #   trigger stimulus
+        #   disable stimulus
+        self.incoming_data_storage.append(data)
 
     @Slot(str)
     def update_threshold_percentage(self, percentage: str) -> None:
@@ -398,11 +460,7 @@ class ProtocolWidget(QWidget):
             maximum_mediolateral_force = list()
 
             for trial in self.baseline_data.keys():
-
-                trial_data = self.baseline_data[trial].copy()
-                mediolateral_force = get_mediolateral_force(trial_data)
-                corrected_mediolateral_force = calculate_force_delta(mediolateral_force)
-                maximum_mediolateral_force.append(max(corrected_mediolateral_force, key=abs))
+                maximum_mediolateral_force.append(self.baseline_data[trial])
 
             mean_maximum_mediolateral_force = np.mean(maximum_mediolateral_force)
             self.threshold = self.threshold_percentage * mean_maximum_mediolateral_force / 100
@@ -426,7 +484,6 @@ class ProtocolWidget(QWidget):
             quiet_stance_timer.timeout.connect(lambda: self.finish_baseline_button.setEnabled(True))
         elif stage == "quiet stance":
             quiet_stance_timer.timeout.connect(self.calculate_quiet_stance)
-            quiet_stance_timer.timeout.connect(lambda: self.stop_trial_button.setEnabled(True))
             quiet_stance_timer.timeout.connect(lambda: self.disconnect_signal.emit(stage))
 
         quiet_stance_timer.start()
@@ -436,10 +493,12 @@ class ProtocolWidget(QWidget):
     def calculate_quiet_stance(self) -> None:
         """Calculate the mean mediolateral force during quiet stance."""
 
-        self._quiet_stance_force = np.mean(get_mediolateral_force(self.temporary_data_storage))
-        self.temporary_data_storage.clear()
+        self._quiet_stance_force = np.mean(get_mediolateral_force(self.incoming_data_storage))
+        self.quiet_stance_data = self.incoming_data_storage.copy()
+        self.incoming_data_storage.clear()
         wait_timer = QTimer(parent=self)
         wait_timer.setSingleShot(True)
-        wait_timer.setInterval(1000)
+        wait_timer.setInterval(500)
         wait_timer.timeout.connect(lambda: self.connect_signal.emit("step"))
+        wait_timer.timeout.connect(lambda: self.stop_trial_button.setEnabled(True))
         wait_timer.start()
