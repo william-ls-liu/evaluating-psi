@@ -48,6 +48,19 @@ SECONDS_TO_SHOW = 5
 # Z-offset of the force platform, in meters
 ZOFF = -0.040934
 
+# Indexes of platform axes
+FX = 0
+FY = 1
+FZ = 2
+MX = 3
+MY = 4
+MZ = 5
+EMG_1 = 6
+EMG_2 = 7
+
+# Cutoff for displaying center of pressure
+MINIMUM_VERTICAL_FORCE = 10
+
 
 def calculate_center_of_pressure(fx, fy, fz, mx, my):
     """Calculate the center of pressure (CoP).
@@ -134,25 +147,34 @@ class PlotWidget(QWidget):
             incoming data
         """
 
-        cop_x, cop_y = calculate_center_of_pressure(
-            data[0],
-            data[1],
-            data[2],
-            data[3],
-            data[4]
-        )
+        if data[FZ] > MINIMUM_VERTICAL_FORCE:
+            cop_x, cop_y = calculate_center_of_pressure(
+                data[FX],
+                data[FY],
+                data[FZ],
+                data[MX],
+                data[MY]
+            )
+        else:
+            # This is super kludge, but basically want a threshold below which
+            # CoP data won't be displayed. Setting to np.NAN works, but raises
+            # an unavoidable warning that has to do with how pyqtgraph uses np,
+            # so for now I'll stick with this.
+            cop_x = 100
+            cop_y = 100
+
         self.cop_xdirection = self.cop_xdirection[1:]
         self.cop_xdirection.append(cop_x)
         self.cop_ydirection = self.cop_ydirection[1:]
         self.cop_ydirection.append(cop_y)
 
         self.force_zdirection = self.force_zdirection[1:]
-        self.force_zdirection.append(data[2])
+        self.force_zdirection.append(data[FZ])
 
         self.emg_tibialis = self.emg_tibialis[1:]
-        self.emg_tibialis.append(data[6])
+        self.emg_tibialis.append(data[EMG_1])
         self.emg_soleus = self.emg_soleus[1:]
-        self.emg_soleus.append(data[7])
+        self.emg_soleus.append(data[EMG_2])
 
     @Slot()
     def update_plots(self) -> None:
