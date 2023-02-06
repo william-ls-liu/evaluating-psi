@@ -7,6 +7,8 @@ from matplotlib.figure import Figure
 matplotlib.use('Qt5Agg')
 
 
+matplotlib.rcParams.update({'font.size': 6})
+
 # Indexes of platform axes
 FX = 0
 FY = 1
@@ -27,8 +29,8 @@ class GraphDialog(QDialog):
 
         # Define the buttons for the dialog box
         self.button_box = QDialogButtonBox()
-        self.button_box.addButton("Save Trial", QDialogButtonBox.AcceptRole)
-        self.button_box.addButton("Repeat Trial", QDialogButtonBox.RejectRole)
+        self.save_button = self.button_box.addButton("Save Trial", QDialogButtonBox.AcceptRole)
+        self.repeat_button = self.button_box.addButton("Repeat Trial", QDialogButtonBox.RejectRole)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
 
@@ -50,6 +52,10 @@ class BaselineGraphDialog(GraphDialog):
 
     def __init__(self, data, peaks, valleys, parent=None):
         super().__init__("Baseline APA Viewer", parent)
+
+        # If no peaks were detected, remove option to save the trial
+        if len(peaks) == 0 or len(valleys) == 0:
+            self.button_box.removeButton(self.save_button)
 
         self.mediolateral_force_graph = self.canvas.figure.add_subplot(1, 1, 1)
         self.mediolateral_force_graph.plot(data)
