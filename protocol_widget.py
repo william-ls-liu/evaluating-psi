@@ -1,11 +1,13 @@
 # Author: William Liu <liwi@ohsu.edu>
 
-from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout, QCheckBox
+from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout, QCheckBox, QFileDialog
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Slot, Signal, Qt, QTimer
 from graph_viewer import BaselineGraphDialog, StepGraphDialog
 import numpy as np
 from scipy.signal import find_peaks
+import csv
+from datetime import datetime
 
 # How long (ms) quiet stance lasts before patient is instructed to take a step
 QUIET_STANCE_DURATION = 5_000
@@ -14,6 +16,9 @@ QUIET_STANCE_DURATION = 5_000
 DEFAULT_FONT = QFont("Arial", 12)
 DEFAULT_FONT_BOLD = QFont("Arial", 14, QFont.Bold)
 
+# Z-offset of the force platform, in meters
+ZOFF = -0.040934
+
 # Indexes of platform axes
 FX = 0
 FY = 1
@@ -21,6 +26,8 @@ FZ = 2
 MX = 3
 MY = 4
 MZ = 5
+EMG_1 = 6
+EMG_2 = 7
 
 
 def get_mediolateral_force(data: list) -> list:
@@ -61,6 +68,67 @@ def calculate_force_delta(force: list) -> np.ndarray:
     force_during_quiet_stance = np.mean(quiet_stance)
 
     return np.array([f - force_during_quiet_stance for f in force])
+
+
+def calculate_center_of_pressure(fx, fy, fz, mx, my) -> tuple:
+    """Calculate the center of pressure (CoP).
+
+    Parameters
+    ----------
+    fx : float
+        the force along the x axis
+    fy : float
+        the force along the y axis
+    fz : float
+        the force along the z axis
+    mx : float
+        the moment about the x axis
+    my : float
+        the moment about the y axis
+
+    Returns
+    -------
+    tuple
+        (x coordinate of the CoP, y coordinate of the CoP)
+    """
+
+    cop_x = (-1) * ((my + (ZOFF * fx)) / fz)
+    cop_y = ((mx - (ZOFF * fy)) / fz)
+
+    return cop_x, cop_y
+
+
+def create_csv_export(step_data: list, quiet_stance_data: list) -> list:
+    """Save data from a step trial as a .csv file.
+
+    Parameters
+    ----------
+    step_data : list
+        data recorded during a step trial, corrected for quiet stance
+    quiet_stance_data : list
+        file name to use for saving
+    """
+
+    datetime_of_export = str(datetime.now())
+    export = [
+        ["Date/Time of Export:", datetime_of_export],
+        [
+            'Fx (N)', 'Fy (N)', 'Fz (N)',
+            'Mx (N/m)', 'My (N/m)', 'Mz (N/m)',
+            'EMG1 (V)', 'EMG2 (V)',
+            'CoPx (m)', 'CoPy (m)',
+            'Stim'
+        ]
+    ]
+
+    full_trial_data = [*quiet_stance_data, *step_data]
+
+    for row in full_trial_data:
+        CoPx, CoPy = calculate_center_of_pressure(row[FX], row[FY], row[FZ], row[MX], row[MY])
+        new_row = [row[FX], row[FY], row[FZ], row[MX], row[MY], row[MZ], row[EMG_1], row[EMG_2], CoPx, CoPy, 0]
+        export.append(new_row)
+
+    return export
 
 
 class ProtocolWidget(QWidget):
@@ -117,7 +185,6 @@ class ProtocolWidget(QWidget):
         self.baseline_data = dict()
         self.incoming_data_storage = list()
         self.quiet_stance_data = None
-        self.trial_data = dict()
 
         # Initiate variables to store state of stimulator
         self.APA_detected = False
@@ -354,6 +421,7 @@ class ProtocolWidget(QWidget):
         peaks: np.ndarray,
         valleys: np.ndarray
     ):
+
         """Save/discard the most recent baseline trial, based on user selection.
 
         Parameters
@@ -371,6 +439,11 @@ class ProtocolWidget(QWidget):
 
         if result == 1:
             self.baseline_trial_counter += 1
+            # During a step there is usually a M/L force in the direction of the
+            # swing leg followed by a M/L force in the direction of the stance
+            # leg. To keep the code functional for a left or right step, look
+            # for whichever occurs first, a peak or a valley, then take that as
+            # the APA.
             if peaks[0] < valleys[0]:
                 max_force_during_apa = corrected_mediolateral_force[peaks[0]]
             else:
@@ -411,11 +484,26 @@ class ProtocolWidget(QWidget):
 
     @Slot(int)
     def handle_step_trial(self, result: int):
-        """"""
+        """Save or discard a step trial."""
 
         if result == 1:
-            self.trial_counter += 1
-            self._update_trial_counter_label()
+
+            fname = QFileDialog.getSaveFileName(
+                parent=self,
+                caption="Select a location to save the trial.",
+                filter="*.csv"
+            )
+
+            if fname[0] != '':
+
+                to_csv = create_csv_export(self.incoming_data_storage, self.quiet_stance_data)
+                file = open(fname[0], 'w+', newline='')
+                with file:
+                    write = csv.writer(file)
+                    write.writerows(to_csv)
+
+                self.trial_counter += 1
+                self._update_trial_counter_label()
 
         self.incoming_data_storage.clear()
 
