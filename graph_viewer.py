@@ -1,6 +1,7 @@
 # Author: William Liu <liwi@ohsu.edu>
 
-from PySide6.QtWidgets import QDialog, QDialogButtonBox, QVBoxLayout
+from PySide6.QtWidgets import QDialog, QDialogButtonBox, QVBoxLayout, QPlainTextEdit, QLabel
+from PySide6.QtCore import Signal
 import matplotlib
 from matplotlib.backends.backend_qtagg import FigureCanvas, NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -40,11 +41,11 @@ class GraphDialog(QDialog):
         # Add the navigation toolbar
         self.toolbar = NavigationToolbar2QT(self.canvas, self)
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.toolbar)
-        layout.addWidget(self.canvas)
-        layout.addWidget(self.button_box)
-        self.setLayout(layout)
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.toolbar)
+        self.layout.addWidget(self.canvas)
+        self.layout.addWidget(self.button_box)
+        self.setLayout(self.layout)
 
 
 class BaselineGraphDialog(GraphDialog):
@@ -67,9 +68,22 @@ class BaselineGraphDialog(GraphDialog):
 class StepGraphDialog(GraphDialog):
     """A dialog window that shows a step trial graph."""
 
+    notes_signal = Signal(str)  # Signal containing collection notes
+
     def __init__(self, data, parent=None) -> None:
 
         super().__init__("Step Trial Viewer", parent)
+
+        # Add a text entry box where user can write collection notes
+        self.collection_notes_label = QLabel(text="Collection Notes:")
+        self.collection_notes_text_edit = QPlainTextEdit(parent=self)
+        self.collection_notes_text_edit.setPlaceholderText("Enter notes here.")
+
+        # Update the layout with new widgets
+        self.layout.replaceWidget(self.button_box, self.collection_notes_label)
+        self.layout.addWidget(self.collection_notes_text_edit)
+        self.layout.addWidget(self.button_box)
+        self.setLayout(self.layout)
 
         self.mediolateral_force_graph = self.canvas.figure.add_subplot(3, 2, 1)
         self.mediolateral_force_graph.plot([row[FX] for row in data])
@@ -90,6 +104,11 @@ class StepGraphDialog(GraphDialog):
         self.emg_soleus_graph = self.canvas.figure.add_subplot(3, 2, 5)
         self.emg_soleus_graph.plot([row[EMG_2] for row in data])
         self.emg_soleus_graph.set_title("EMG Soleus (V)")
+
+    def accept(self):
+        """Re-implement default accept behavior to save collection notes."""
+        self.notes_signal.emit(self.collection_notes_text_edit.toPlainText())
+        super().accept()
 
 
 class MplCanvas(FigureCanvas):

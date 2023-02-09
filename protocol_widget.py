@@ -98,7 +98,7 @@ def calculate_center_of_pressure(fx, fy, fz, mx, my) -> tuple:
     return cop_x, cop_y
 
 
-def create_csv_export(step_data: list, quiet_stance_data: list) -> list:
+def create_csv_export(step_data: list, quiet_stance_data: list, notes: str, stim_status: bool) -> list:
     """Save data from a step trial as a .csv file.
 
     Parameters
@@ -107,11 +107,17 @@ def create_csv_export(step_data: list, quiet_stance_data: list) -> list:
         data recorded during a step trial, corrected for quiet stance
     quiet_stance_data : list
         file name to use for saving
+    notes : str
+        a str of user-entered notes
+    stim_status : bool
+        a bool to indicate whether stimulation was enabled during the trial
     """
 
     datetime_of_export = str(datetime.now())
     export = [
         ["Date/Time of Export:", datetime_of_export],
+        ["Stimulus Enabled:", stim_status],
+        ["Collection Notes:", notes],
         [
             'Fx (N)', 'Fy (N)', 'Fz (N)',
             'Mx (N/m)', 'My (N/m)', 'Mz (N/m)',
@@ -479,8 +485,9 @@ class ProtocolWidget(QWidget):
         """
 
         graph_dialog = StepGraphDialog(self.incoming_data_storage, parent=self)
-        graph_dialog.open()
         graph_dialog.finished.connect(self.handle_step_trial)
+        graph_dialog.notes_signal.connect(self.receive_collection_notes)
+        graph_dialog.open()
 
     @Slot(int)
     def handle_step_trial(self, result: int):
@@ -496,7 +503,12 @@ class ProtocolWidget(QWidget):
 
             if fname[0] != '':
 
-                to_csv = create_csv_export(self.incoming_data_storage, self.quiet_stance_data)
+                to_csv = create_csv_export(
+                    self.incoming_data_storage,
+                    self.quiet_stance_data,
+                    self.collection_notes,
+                    self.stimulus_enabled
+                )
                 file = open(fname[0], 'w+', newline='')
                 with file:
                     write = csv.writer(file)
@@ -506,11 +518,23 @@ class ProtocolWidget(QWidget):
                 self._update_trial_counter_label()
 
         self.incoming_data_storage.clear()
+        del self.collection_notes
+
+    @Slot(str)
+    def receive_collection_notes(self, notes: str) -> None:
+        """Slot that receives notes entered in the step graph dialog.
+
+        Parameters
+        ----------
+        notes : str
+            a str of user-entered notes
+        """
+
+        self.collection_notes = notes
 
     @Slot(int)
     def enable_stimulus(self) -> None:
         self.stimulus_enabled = self.enable_stimulus_button.isChecked()
-        print(self.stimulus_enabled)
 
     @Slot(np.ndarray)
     def receive_data(self, data: np.ndarray) -> None:
