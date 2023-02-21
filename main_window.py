@@ -47,7 +47,7 @@ class MainWindow(QMainWindow):
         self.control_bar.stop_button_signal.connect(self.plot_widget.stop_timer)
 
         # Connect the record button to the protocol buttons
-        self.control_bar.record_button_signal.connect(self.protocol_widget.toggle_start_baseline_button)
+        self.control_bar.record_button_signal.connect(self.protocol_widget.toggle_baseline_buttons)
         self.control_bar.record_button_signal.connect(self.control_graphs_for_protocol)
 
         # Connect the data from the worker to the plot widget
