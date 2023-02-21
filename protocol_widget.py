@@ -121,7 +121,7 @@ def create_csv_export(step_data: list, quiet_stance_data: list, notes: str, stim
         [
             'Fx (N)', 'Fy (N)', 'Fz (N)',
             'Mx (N/m)', 'My (N/m)', 'Mz (N/m)',
-            'EMG1 (V)', 'EMG2 (V)',
+            'EMG_Tib (V)', 'EMG_Sol (V)',
             'CoPx (m)', 'CoPy (m)',
             'Stim'
         ]
@@ -310,7 +310,7 @@ class ProtocolWidget(QWidget):
         )
 
     @Slot(bool)
-    def toggle_start_baseline_button(self, check_state) -> None:
+    def toggle_baseline_buttons(self, check_state) -> None:
         self.start_baseline_button.setEnabled(check_state)
         self.stop_baseline_button.setEnabled(check_state)
 
@@ -463,6 +463,7 @@ class ProtocolWidget(QWidget):
     @Slot()
     def start_trial_button_clicked(self) -> None:
         self.start_trial_button.setEnabled(False)
+        self.start_baseline_button.setEnabled(False)
         self.disable_record_button_signal.emit()
         self._collect_quiet_stance("quiet stance")
 
@@ -472,6 +473,7 @@ class ProtocolWidget(QWidget):
         self.enable_record_button_signal.emit()
         self.start_trial_button.setEnabled(True)
         self.stop_trial_button.setEnabled(False)
+        self.start_baseline_button.setEnabled(True)
         self.APA_detected = False
 
         # Open the GraphDialog
@@ -516,9 +518,9 @@ class ProtocolWidget(QWidget):
 
                 self.trial_counter += 1
                 self._update_trial_counter_label()
+                del self.collection_notes
 
         self.incoming_data_storage.clear()
-        del self.collection_notes
 
     @Slot(str)
     def receive_collection_notes(self, notes: str) -> None:
