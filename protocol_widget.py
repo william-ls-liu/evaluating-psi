@@ -271,7 +271,7 @@ class ProtocolWidget(QWidget):
         # ComboBox for specifying % threshold
         self.threshold_percentage_entry = QComboBox(parent=self)
         self.threshold_percentage_entry.addItems([str(i*5) for i in range(1, 21)])
-        self.threshold_percentage_entry.currentTextChanged.connect(self.update_threshold_percentage)
+        self.threshold_percentage_entry.currentTextChanged.connect(self._set_APA_threshold)
         self.threshold_percentage = int(self.threshold_percentage_entry.currentText())  # Initialize a default value
 
         # Label for the ComboBox
@@ -376,7 +376,7 @@ class ProtocolWidget(QWidget):
             self.start_trial_button.setEnabled(False)
         elif ret == QMessageBox.Save:
             if self.threshold is None:
-                self.update_threshold_percentage(self.threshold_percentage_entry.currentText())
+                self._set_APA_threshold(self.threshold_percentage_entry.currentText())
             self.start_trial_button.setEnabled(True)
 
         if ret in {QMessageBox.Discard, QMessageBox.Save, QMessageBox.Yes}:
@@ -457,6 +457,7 @@ class ProtocolWidget(QWidget):
 
             self.baseline_data[f"trial {self.baseline_trial_counter}"] = max_force_during_apa
             self._update_baseline_trial_counter_label()
+            self._set_APA_threshold(self.threshold_percentage_entry.currentText())
 
         self.incoming_data_storage.clear()
 
@@ -569,7 +570,7 @@ class ProtocolWidget(QWidget):
         self.incoming_data_storage.append(data)
 
     @Slot(str)
-    def update_threshold_percentage(self, percentage: str) -> None:
+    def _set_APA_threshold(self, percentage: str) -> None:
         """Calculate the APA threshold based on the collected baseline trials.
 
         For every trial find the maximum mediolateral Force. Find the
