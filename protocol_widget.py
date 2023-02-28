@@ -144,7 +144,6 @@ def create_csv_export(
 
     # Get the mean during quiet stance
     quiet_stance_mean = np.mean(quiet_stance_data, axis=0, dtype=np.float64)
-    print(quiet_stance_mean)
 
     full_trial_data = np.subtract(step_data, quiet_stance_mean)
 
