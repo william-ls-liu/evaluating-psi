@@ -94,7 +94,6 @@ class DataWorker(QObject):
     def ttl(self):
         """Trigger the TTL output."""
         self.DAQ_device.ttl()
-        print("stimmed")
 
     @Slot()
     def shutdown(self):
