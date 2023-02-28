@@ -28,6 +28,7 @@ MY = 4
 MZ = 5
 EMG_1 = 6
 EMG_2 = 7
+STIM = 8
 
 
 def get_mediolateral_force(data: list) -> list:
@@ -112,9 +113,9 @@ def create_csv_export(
     Parameters
     ----------
     step_data : list
-        data recorded during a step trial, corrected for quiet stance
+        data recorded during a step trial
     quiet_stance_data : list
-        file name to use for saving
+        data recorded during the quiet stance that precedes a step trial
     notes : str
         a str of user-entered notes
     stim_status : bool
@@ -141,11 +142,15 @@ def create_csv_export(
         ]
     ]
 
-    full_trial_data = [*quiet_stance_data, *step_data]
+    # Get the mean during quiet stance
+    quiet_stance_mean = np.mean(quiet_stance_data, axis=0, dtype=np.float64)
+    print(quiet_stance_mean)
+
+    full_trial_data = np.subtract(step_data, quiet_stance_mean)
 
     for row in full_trial_data:
         CoPx, CoPy = calculate_center_of_pressure(row[FX], row[FY], row[FZ], row[MX], row[MY])
-        new_row = [row[FX], row[FY], row[FZ], row[MX], row[MY], row[MZ], row[EMG_1], row[EMG_2], CoPx, CoPy, 0]
+        new_row = [row[FX], row[FY], row[FZ], row[MX], row[MY], row[MZ], row[EMG_1], row[EMG_2], CoPx, CoPy, row[STIM]]
         export.append(new_row)
 
     return export
@@ -565,7 +570,7 @@ class ProtocolWidget(QWidget):
             array sent from `DataWorker`
         """
 
-        self.incoming_data_storage.append(data)
+        self.incoming_data_storage.append(np.append(data, 0))
 
     @Slot(np.ndarray)
     def receive_step_data(self, data: np.ndarray) -> None:
@@ -577,13 +582,15 @@ class ProtocolWidget(QWidget):
             array of raw data read from the DAQ
         """
 
+        stim = 0
         if self.APA_detected is False:
             if abs(data[FX] - self._quiet_stance_force) > abs(self.threshold):
                 if self.stimulus_enabled:
                     self.stimulus_signal.emit()
+                    stim = 1
                 self.APA_detected = True
 
-        self.incoming_data_storage.append(data)
+        self.incoming_data_storage.append(np.append(data, stim))
 
     @Slot(str)
     def _set_APA_threshold(self, percentage: str) -> None:
