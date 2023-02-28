@@ -98,7 +98,15 @@ def calculate_center_of_pressure(fx, fy, fz, mx, my) -> tuple:
     return cop_x, cop_y
 
 
-def create_csv_export(step_data: list, quiet_stance_data: list, notes: str, stim_status: bool) -> list:
+def create_csv_export(
+        step_data: list,
+        quiet_stance_data: list,
+        notes: str,
+        stim_status: bool,
+        threshold: float,
+        threshold_percent: int
+) -> list:
+
     """Save data from a step trial as a .csv file.
 
     Parameters
@@ -111,11 +119,17 @@ def create_csv_export(step_data: list, quiet_stance_data: list, notes: str, stim
         a str of user-entered notes
     stim_status : bool
         a bool to indicate whether stimulation was enabled during the trial
+    threshold : float
+        the threshold used to determine an APA
+    threshold_percent : int
+        the percent used to calculate threshold
     """
 
     datetime_of_export = str(datetime.now())
     export = [
         ["Date/Time of Export:", datetime_of_export],
+        ["APA Threshold:", threshold],
+        ["Threshold Percentage:", threshold_percent],
         ["Stimulus Enabled:", stim_status],
         ["Collection Notes:", notes],
         [
@@ -510,7 +524,9 @@ class ProtocolWidget(QWidget):
                     self.incoming_data_storage,
                     self.quiet_stance_data,
                     self.collection_notes,
-                    self.stimulus_enabled
+                    self.stimulus_enabled,
+                    self.threshold,
+                    self.threshold_percentage
                 )
                 file = open(fname[0], 'w+', newline='')
                 with file:
