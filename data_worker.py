@@ -54,7 +54,7 @@ class DataWorker(QObject):
 
         # Initialize the DAQ
         self.DAQ_device = DAQ('Dev1', rate=self.sample_rate)
-        self.DAQ_device.create_tasks('ai1:6', 'ai7:8')
+        self.DAQ_device.create_tasks([1, 2, 3, 4, 5, 6], [7, 15])
 
         # Store the state of the task
         self.task_is_running = False

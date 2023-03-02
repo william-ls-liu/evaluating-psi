@@ -46,7 +46,7 @@ class DAQ:
 
         return analog_sensitivities
 
-    def create_tasks(self, fp_channels: str, emg_channels: str):
+    def create_tasks(self, fp_channels: list, emg_channels: list):
         # I belive assigning a name to the task will cause an error when trying
         # to create multiple tasks, so I'm assigning it a name to prevent unintended
         # creation of tasks.
@@ -61,20 +61,22 @@ class DAQ:
         # Use Referenced Single Ended to measure relative to GND
         # The voltage output of the Gen5 amp is +/- 5V, but I don't think these parameters
         # actually change anything about the measurement.
-        self.task.ai_channels.add_ai_voltage_chan(
-            physical_channel=f"{self.dev_name}/{fp_channels}",
-            min_val=-5,
-            max_val=5,
-            terminal_config=TerminalConfiguration.RSE
-        )
+        for channel in fp_channels:
+            self.task.ai_channels.add_ai_voltage_chan(
+                physical_channel=f"{self.dev_name}/ai{str(channel)}",
+                min_val=-5,
+                max_val=5,
+                terminal_config=TerminalConfiguration.RSE
+            )
 
         # Add the EMG channels
-        self.task.ai_channels.add_ai_voltage_chan(
-            physical_channel=f"{self.dev_name}/{emg_channels}",
-            min_val=-2.5,
-            max_val=2.5,
-            terminal_config=TerminalConfiguration.RSE
-        )
+        for channel in emg_channels:
+            self.task.ai_channels.add_ai_voltage_chan(
+                physical_channel=f"{self.dev_name}/ai{str(channel)}",
+                min_val=-2.5,
+                max_val=2.5,
+                terminal_config=TerminalConfiguration.RSE
+            )
 
         # Define sample timing parameters
         self.task.timing.cfg_samp_clk_timing(
