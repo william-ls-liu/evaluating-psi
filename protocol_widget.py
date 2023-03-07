@@ -348,6 +348,18 @@ class ProtocolWidget(QWidget):
             an empty grid layout
         """
 
+        # Create combobox to select type of trial
+        self.trial_select_combobox = QComboBox(parent=self)
+        self.trial_select_combobox.addItems(["Quiet Stance Trial", "Step Trial"])
+        self.trial_select_combobox.currentTextChanged.connect(self._set_trial_type)
+        self.trial_type = self.trial_select_combobox.currentText()  # Initialize the trial type
+
+        # Create button to enable/disable stimulus
+        self.enable_stimulus_button = QCheckBox(text="Enable stimulus", parent=self)
+        self.enable_stimulus_button.setFont(DEFAULT_FONT)
+        self.enable_stimulus_button.stateChanged.connect(self.enable_stimulus)
+        self.stimulus_enabled = self.enable_stimulus_button.isChecked()
+
         # Create buttons for starting/stopping the protocol
         self.start_trial_button = QPushButton(parent=self, text="Start Trial")
         self.start_trial_button.setEnabled(False)
@@ -363,17 +375,12 @@ class ProtocolWidget(QWidget):
         self.trial_counter_label.setFont(DEFAULT_FONT)
         self._update_trial_counter_label()
 
-        # Create button to enable/disable stimulus
-        self.enable_stimulus_button = QCheckBox(text="Enable stimulus", parent=self)
-        self.enable_stimulus_button.setFont(DEFAULT_FONT)
-        self.enable_stimulus_button.stateChanged.connect(self.enable_stimulus)
-        self.stimulus_enabled = self.enable_stimulus_button.isChecked()
-
         # Add widgets to the layout
-        layout.addWidget(self.enable_stimulus_button, 0, 0)
-        layout.addWidget(self.start_trial_button, 1, 0)
-        layout.addWidget(self.stop_trial_button, 2, 0)
-        layout.addWidget(self.trial_counter_label, 3, 0)
+        layout.addWidget(self.trial_select_combobox, 0, 0)
+        layout.addWidget(self.enable_stimulus_button, 1, 0)
+        layout.addWidget(self.start_trial_button, 2, 0)
+        layout.addWidget(self.stop_trial_button, 3, 0)
+        layout.addWidget(self.trial_counter_label, 4, 0)
 
     def _update_baseline_trial_counter_label(self) -> None:
         self.baseline_trial_counter_label.setText(
@@ -697,6 +704,17 @@ class ProtocolWidget(QWidget):
             mean_maximum_mediolateral_force = np.mean(maximum_mediolateral_force)
             self.threshold = self.threshold_percentage * mean_maximum_mediolateral_force / 100
             self._update_APA_threshold_label()
+
+    @Slot(str)
+    def _set_trial_type(self, type: str) -> None:
+        """Set what type of trial, Quiet Stance | Step, to use.
+
+        Parameters
+        ----------
+        type : str
+            the type of trial to use
+        """
+        self.trial_type = type
 
     def _collect_quiet_stance(self, stage: str) -> None:
         """Collect data for `QUIET_STANCE_DURATION` amount of time.
