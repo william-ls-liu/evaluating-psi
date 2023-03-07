@@ -194,34 +194,13 @@ class ProtocolWidget(QWidget):
         self.progress_label.setFont(DEFAULT_FONT_BOLD)
         self.progress_label.setWordWrap(True)
 
-        # Create buttons for starting/stopping the protocol
-        self.start_trial_button = QPushButton(parent=self, text="Start Trial")
-        self.start_trial_button.setEnabled(False)
-        self.start_trial_button.clicked.connect(self.start_trial_button_clicked)
-
-        self.stop_trial_button = QPushButton(parent=self, text="Stop Trial")
-        self.stop_trial_button.setEnabled(False)
-        self.stop_trial_button.clicked.connect(self.stop_trial_button_clicked)
-
-        # Create label to track number of collected trials
-        self.trial_counter = 0
-        self.trial_counter_label = QLabel(parent=self)
-        self.trial_counter_label.setFont(DEFAULT_FONT)
-        self._update_trial_counter_label()
-
-        # Create button to enable/disable stimulus
-        self.enable_stimulus_button = QCheckBox(text="Enable stimulus", parent=self)
-        self.enable_stimulus_button.setFont(DEFAULT_FONT)
-        self.enable_stimulus_button.stateChanged.connect(self.enable_stimulus)
-
         # Initiate variable to store the baseline data
         self.baseline_data = dict()
         self.incoming_data_storage = list()
         self.quiet_stance_data = None
 
-        # Initiate variables to store state of stimulator
+        # Initiate variables to store whether an APA has been detected
         self.APA_detected = False
-        self.stimulus_enabled = self.enable_stimulus_button.isChecked()
 
         # Initiate variables to store patient demographics
         self.patient_id = None
@@ -239,20 +218,21 @@ class ProtocolWidget(QWidget):
         # Create a layout for the threshold buttons
         threshold_layout = QGridLayout()
 
+        # Create a layout for the trial buttons
+        trial_layout = QGridLayout()
+
         # Populate the layout
         layout.addWidget(self.progress_label, 0, 0, Qt.AlignTop | Qt.AlignHCenter)
         layout.addLayout(patient_info_layout, 1, 0, Qt.AlignTop)
         layout.addLayout(baseline_layout, 2, 0)
         layout.addLayout(threshold_layout, 3, 0)
-        layout.addWidget(self.enable_stimulus_button, 4, 0)
-        layout.addWidget(self.start_trial_button, 5, 0)
-        layout.addWidget(self.stop_trial_button, 6, 0)
-        layout.addWidget(self.trial_counter_label, 7, 0, Qt.AlignTop)
+        layout.addLayout(trial_layout, 4, 0)
 
         # Populate the baseline and threshold layouts
         self._create_patient_info_layout(patient_info_layout)
         self._create_baseline_layout(baseline_layout)
         self._create_threshold_layout(threshold_layout)
+        self._create_trial_layout(trial_layout)
 
         self.setLayout(layout)
         self.setFixedWidth(300)
@@ -358,6 +338,42 @@ class ProtocolWidget(QWidget):
         layout.addWidget(self.threshold_percentage_entry, 0, 3)
         layout.addWidget(self.threshold_percentage_label, 0, 0, 1, 3)
         layout.addWidget(self.threshold_label, 1, 0, 1, -1, Qt.AlignTop)
+
+    def _create_trial_layout(self, layout: QGridLayout) -> None:
+        """Add widgets to the trial layout.
+
+        Parameters
+        ----------
+        layout : PySide6.QtWidgets.QGridLayout
+            an empty grid layout
+        """
+
+        # Create buttons for starting/stopping the protocol
+        self.start_trial_button = QPushButton(parent=self, text="Start Trial")
+        self.start_trial_button.setEnabled(False)
+        self.start_trial_button.clicked.connect(self.start_trial_button_clicked)
+
+        self.stop_trial_button = QPushButton(parent=self, text="Stop Trial")
+        self.stop_trial_button.setEnabled(False)
+        self.stop_trial_button.clicked.connect(self.stop_trial_button_clicked)
+
+        # Create label to track number of collected trials
+        self.trial_counter = 0
+        self.trial_counter_label = QLabel(parent=self)
+        self.trial_counter_label.setFont(DEFAULT_FONT)
+        self._update_trial_counter_label()
+
+        # Create button to enable/disable stimulus
+        self.enable_stimulus_button = QCheckBox(text="Enable stimulus", parent=self)
+        self.enable_stimulus_button.setFont(DEFAULT_FONT)
+        self.enable_stimulus_button.stateChanged.connect(self.enable_stimulus)
+        self.stimulus_enabled = self.enable_stimulus_button.isChecked()
+
+        # Add widgets to the layout
+        layout.addWidget(self.enable_stimulus_button, 0, 0)
+        layout.addWidget(self.start_trial_button, 1, 0)
+        layout.addWidget(self.stop_trial_button, 2, 0)
+        layout.addWidget(self.trial_counter_label, 3, 0)
 
     def _update_baseline_trial_counter_label(self) -> None:
         self.baseline_trial_counter_label.setText(
