@@ -1,6 +1,7 @@
 # Author: William Liu <liwi@ohsu.edu>
 
-from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout, QCheckBox, QFileDialog
+from PySide6.QtWidgets import (QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout, QCheckBox,
+                               QFileDialog, QLineEdit)
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Slot, Signal, Qt, QTimer
 from graph_viewer import BaselineGraphDialog, StepGraphDialog
@@ -105,7 +106,9 @@ def create_csv_export(
         notes: str,
         stim_status: bool,
         threshold: float,
-        threshold_percent: int
+        threshold_percent: int,
+        patient_id: str,
+        patient_foot_measurement: str,
 ) -> list:
 
     """Save data from a step trial as a .csv file.
@@ -124,11 +127,17 @@ def create_csv_export(
         the threshold used to determine an APA
     threshold_percent : int
         the percent used to calculate threshold
+    patient_id : str
+        patient identifier
+    patient_foot_measurement
+        patient's foot size
     """
 
     datetime_of_export = str(datetime.now())
     export = [
         ["Date/Time of Export:", datetime_of_export],
+        ["Patient ID:", patient_id],
+        ["Foot Measurement:", patient_foot_measurement],
         ["APA Threshold:", threshold],
         ["Threshold Percentage:", threshold_percent],
         ["Stimulus Enabled:", stim_status],
@@ -214,8 +223,15 @@ class ProtocolWidget(QWidget):
         self.APA_detected = False
         self.stimulus_enabled = self.enable_stimulus_button.isChecked()
 
+        # Initiate variables to store patient demographics
+        self.patient_id = None
+        self.patient_foot_measurement = None
+
         # Create the parent layout
         layout = QGridLayout()
+
+        # Create layout for entering patient info
+        patient_info_layout = QGridLayout()
 
         # Create layout for the baseline buttons
         baseline_layout = QGridLayout()
@@ -225,19 +241,51 @@ class ProtocolWidget(QWidget):
 
         # Populate the layout
         layout.addWidget(self.progress_label, 0, 0, Qt.AlignTop | Qt.AlignHCenter)
-        layout.addLayout(baseline_layout, 1, 0)
-        layout.addLayout(threshold_layout, 2, 0)
-        layout.addWidget(self.enable_stimulus_button, 3, 0)
-        layout.addWidget(self.start_trial_button, 4, 0)
-        layout.addWidget(self.stop_trial_button, 5, 0)
-        layout.addWidget(self.trial_counter_label, 6, 0, Qt.AlignTop)
+        layout.addLayout(patient_info_layout, 1, 0, Qt.AlignTop)
+        layout.addLayout(baseline_layout, 2, 0)
+        layout.addLayout(threshold_layout, 3, 0)
+        layout.addWidget(self.enable_stimulus_button, 4, 0)
+        layout.addWidget(self.start_trial_button, 5, 0)
+        layout.addWidget(self.stop_trial_button, 6, 0)
+        layout.addWidget(self.trial_counter_label, 7, 0, Qt.AlignTop)
 
         # Populate the baseline and threshold layouts
+        self._create_patient_info_layout(patient_info_layout)
         self._create_baseline_layout(baseline_layout)
         self._create_threshold_layout(threshold_layout)
 
         self.setLayout(layout)
         self.setFixedWidth(300)
+
+    def _create_patient_info_layout(self, layout: QGridLayout) -> None:
+        """Create the layout for entering patient info
+
+        Parameters
+        ----------
+        layout : PySide6.QtWidgets.QGridLayout
+            an empty grid layout
+        """
+
+        self.patient_id_entry = QLineEdit(parent=self)
+        self.patient_id_entry.setPlaceholderText("Enter ID here")
+        patient_id_label = QLabel("Patient ID", parent=self)
+        patient_id_label.setFont(DEFAULT_FONT)
+
+        self.foot_size_entry = QLineEdit(parent=self)
+        self.foot_size_entry.setPlaceholderText("Enter foot measurement here")
+        foot_size_label = QLabel("Foot Measurement", parent=self)
+        foot_size_label.setFont(DEFAULT_FONT)
+
+        self.store_demographics_button = QPushButton(parent=self, text="Store Patient Info")
+        self.store_demographics_button.setCheckable(True)
+        self.store_demographics_button.setChecked(True)
+        self.store_demographics_button.clicked.connect(self.demographics_button_clicked)
+
+        layout.addWidget(patient_id_label, 0, 0)
+        layout.addWidget(self.patient_id_entry, 0, 1)
+        layout.addWidget(foot_size_label)
+        layout.addWidget(self.foot_size_entry, 1, 1)
+        layout.addWidget(self.store_demographics_button, 2, 0, 1, 2)
 
     def _create_baseline_layout(self, layout: QGridLayout) -> None:
         """Create buttons for baseline collection, add them to a layout.
@@ -328,7 +376,21 @@ class ProtocolWidget(QWidget):
         )
 
     @Slot(bool)
-    def toggle_baseline_buttons(self, check_state) -> None:
+    def demographics_button_clicked(self, check_state: bool) -> None:
+        """"""
+        if check_state:
+            self.store_demographics_button.setText("Store Patient Info")
+        else:
+            self.store_demographics_button.setText("Edit Patient Info")
+            self.patient_id = self.patient_id_entry.text()
+            self.patient_foot_measurement = self.foot_size_entry.text()
+
+        # Disable/enable the text entrys as appropriate
+        self.patient_id_entry.setEnabled(check_state)
+        self.foot_size_entry.setEnabled(check_state)
+
+    @Slot(bool)
+    def toggle_baseline_buttons(self, check_state: bool) -> None:
         self.start_baseline_button.setEnabled(check_state)
         self.stop_baseline_button.setEnabled(check_state)
 
@@ -530,7 +592,9 @@ class ProtocolWidget(QWidget):
                     self.collection_notes,
                     self.stimulus_enabled,
                     self.threshold,
-                    self.threshold_percentage
+                    self.threshold_percentage,
+                    self.patient_id,
+                    self.patient_foot_measurement
                 )
                 file = open(fname[0], 'w+', newline='')
                 with file:
