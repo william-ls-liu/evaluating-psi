@@ -352,13 +352,15 @@ class ProtocolWidget(QWidget):
         self.trial_select_combobox = QComboBox(parent=self)
         self.trial_select_combobox.addItems(["Standing Trial", "Step Trial"])
         self.trial_select_combobox.currentTextChanged.connect(self._set_trial_type)
-        self.trial_type = self.trial_select_combobox.currentText()  # Initialize the trial type
 
         # Create button to enable/disable stimulus
         self.enable_stimulus_button = QCheckBox(text="Enable stimulus", parent=self)
         self.enable_stimulus_button.setFont(DEFAULT_FONT)
         self.enable_stimulus_button.stateChanged.connect(self.enable_stimulus)
         self.stimulus_enabled = self.enable_stimulus_button.isChecked()
+
+        # Initialize the trial type, must happen after enable_stimulus_button has been created
+        self._set_trial_type(self.trial_select_combobox.currentText())  # Initialize the trial type
 
         # Create buttons for starting/stopping the protocol
         self.start_trial_button = QPushButton(parent=self, text="Start Trial")
@@ -569,6 +571,8 @@ class ProtocolWidget(QWidget):
         print("START", self.trial_type)
         self.start_trial_button.setEnabled(False)
         self.start_baseline_button.setEnabled(False)
+        self.trial_select_combobox.setEnabled(False)
+        self.enable_stimulus_button.setEnabled(False)
         self.disable_record_button_signal.emit()
         if self.trial_type == "Step Trial":
             self._collect_quiet_stance("quiet stance")
@@ -588,6 +592,8 @@ class ProtocolWidget(QWidget):
         self.start_trial_button.setEnabled(True)
         self.stop_trial_button.setEnabled(False)
         self.start_baseline_button.setEnabled(True)
+        self.trial_select_combobox.setEnabled(True)
+        self.enable_stimulus_button.setEnabled(True)
         self.APA_detected = False
 
         # Open the GraphDialog
@@ -691,7 +697,16 @@ class ProtocolWidget(QWidget):
 
     @Slot(np.ndarray)
     def receive_standing_trial_data(self, data: np.ndarray) -> None:
-        """"""
+        """Receives data from the `DataWorker` for a standing trial.
+
+        Every 10,000 samples (10 seconds) a stimulus is delivered.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            array of raw data read from the DAQ
+        """
+
         if len(self.incoming_data_storage) % 10_000 == 0:
             self.stimulus_signal.emit()
             self.incoming_data_storage.append(np.append(data, 1))
@@ -727,14 +742,22 @@ class ProtocolWidget(QWidget):
 
     @Slot(str)
     def _set_trial_type(self, type: str) -> None:
-        """Set what type of trial, Quiet Stance | Step, to use.
+        """Set what type of trial, Standing Trial | Step Trial, to use.
 
         Parameters
         ----------
         type : str
             the type of trial to use
         """
+
         self.trial_type = type
+
+        if type == "Standing Trial":
+            self.enable_stimulus_button.setChecked(True)
+            self.enable_stimulus_button.setEnabled(False)
+        elif type == "Step Trial":
+            self.enable_stimulus_button.setChecked(False)
+            self.enable_stimulus_button.setEnabled(True)
 
     def _collect_quiet_stance(self, stage: str) -> None:
         """Collect data for `QUIET_STANCE_DURATION` amount of time.
@@ -776,8 +799,14 @@ class ProtocolWidget(QWidget):
         wait_timer.timeout.connect(lambda: self.stop_trial_button.setEnabled(True))
         wait_timer.start()
 
+    @Slot()
     def standing_trial(self) -> None:
-        """"""
+        """Runs the protocol for a standing trial.
+
+        A standing trial consists of 10 successive stimuli, with 10 seconds
+        between each stimulus. This method creates a timer that will stop the
+        data collection after 10 stimuli have been deliverd to the patient.
+        """
 
         self.quiet_stance_data = self.incoming_data_storage.copy()
         self.incoming_data_storage.clear()
