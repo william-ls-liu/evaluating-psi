@@ -129,17 +129,21 @@ class MainWindow(QMainWindow):
             a string specifying which slot to connect
         """
 
-        if stage in {"baseline", "quiet stance"}:
+        if stage in {"baseline", "quiet stance", "standing quiet stance"}:
             self.data_worker.data_signal.connect(self.protocol_widget.receive_data)
-        else:
+        elif stage == "step":
             self.data_worker.data_signal.connect(self.protocol_widget.receive_step_data)
+        elif stage == "standing":
+            self.data_worker.data_signal.connect(self.protocol_widget.receive_standing_trial_data)
 
     @Slot(str)
     def disconnect_data_from_protocol_widget(self, stage):
-        if stage in {"baseline", "quiet stance"}:
+        if stage in {"baseline", "quiet stance", "standing quiet stance"}:
             self.data_worker.data_signal.disconnect(self.protocol_widget.receive_data)
-        else:
+        elif stage == "step":
             self.data_worker.data_signal.disconnect(self.protocol_widget.receive_step_data)
+        elif stage == "standing":
+            self.data_worker.data_signal.disconnect(self.protocol_widget.receive_standing_trial_data)
 
     @Slot()
     def control_graphs_for_protocol(self, check_state):
