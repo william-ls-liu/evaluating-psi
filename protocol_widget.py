@@ -197,7 +197,7 @@ class ProtocolWidget(QWidget):
         # Initiate variable to store the baseline data
         self.baseline_data = dict()
         self.incoming_data_storage = list()
-        self.quiet_stance_data = None
+        self.quiet_stance_data = list()
 
         # Initiate variables to store whether an APA has been detected
         self.APA_detected = False
@@ -350,7 +350,7 @@ class ProtocolWidget(QWidget):
 
         # Create combobox to select type of trial
         self.trial_select_combobox = QComboBox(parent=self)
-        self.trial_select_combobox.addItems(["Quiet Stance Trial", "Step Trial"])
+        self.trial_select_combobox.addItems(["Standing Trial", "Step Trial"])
         self.trial_select_combobox.currentTextChanged.connect(self._set_trial_type)
         self.trial_type = self.trial_select_combobox.currentText()  # Initialize the trial type
 
@@ -566,14 +566,24 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def start_trial_button_clicked(self) -> None:
+        print("START", self.trial_type)
         self.start_trial_button.setEnabled(False)
         self.start_baseline_button.setEnabled(False)
         self.disable_record_button_signal.emit()
-        self._collect_quiet_stance("quiet stance")
+        if self.trial_type == "Step Trial":
+            self._collect_quiet_stance("quiet stance")
+        elif self.trial_type == "Standing Trial":
+            self._collect_quiet_stance("standing quiet stance")
+        else:
+            raise NameError(f"{self.trial_type} was not found.")
 
     @Slot()
     def stop_trial_button_clicked(self) -> None:
-        self.disconnect_signal.emit("step")
+        print("STOP", self.trial_type)
+        if self.trial_type == "Step Trial":
+            self.disconnect_signal.emit("step")
+        elif self.trial_type == "Standing Trial":
+            self.disconnect_signal.emit("standing")
         self.enable_record_button_signal.emit()
         self.start_trial_button.setEnabled(True)
         self.stop_trial_button.setEnabled(False)
@@ -629,6 +639,7 @@ class ProtocolWidget(QWidget):
                 del self.collection_notes
 
         self.incoming_data_storage.clear()
+        self.quiet_stance_data.clear()
 
     @Slot(str)
     def receive_collection_notes(self, notes: str) -> None:
@@ -677,6 +688,15 @@ class ProtocolWidget(QWidget):
                 self.APA_detected = True
 
         self.incoming_data_storage.append(np.append(data, stim))
+
+    @Slot(np.ndarray)
+    def receive_standing_trial_data(self, data: np.ndarray) -> None:
+        """"""
+        if len(self.incoming_data_storage) % 10_000 == 0:
+            self.stimulus_signal.emit()
+            self.incoming_data_storage.append(np.append(data, 1))
+        else:
+            self.incoming_data_storage.append(np.append(data, 0))
 
     @Slot(str)
     def _set_APA_threshold(self, percentage: str) -> None:
@@ -735,6 +755,9 @@ class ProtocolWidget(QWidget):
         elif stage == "quiet stance":
             quiet_stance_timer.timeout.connect(self.calculate_quiet_stance)
             quiet_stance_timer.timeout.connect(lambda: self.disconnect_signal.emit(stage))
+        elif stage == "standing quiet stance":
+            quiet_stance_timer.timeout.connect(self.standing_trial)
+            quiet_stance_timer.timeout.connect(lambda: self.disconnect_signal.emit(stage))
 
         quiet_stance_timer.start()
         self.connect_signal.emit(stage)
@@ -751,4 +774,24 @@ class ProtocolWidget(QWidget):
         wait_timer.setInterval(500)
         wait_timer.timeout.connect(lambda: self.connect_signal.emit("step"))
         wait_timer.timeout.connect(lambda: self.stop_trial_button.setEnabled(True))
+        wait_timer.start()
+
+    def standing_trial(self) -> None:
+        """"""
+
+        self.quiet_stance_data = self.incoming_data_storage.copy()
+        self.incoming_data_storage.clear()
+
+        standing_timer = QTimer(parent=self)
+        standing_timer.setSingleShot(True)
+        standing_timer.setInterval(95_000)
+        standing_timer.setTimerType(Qt.PreciseTimer)
+        standing_timer.timeout.connect(self.stop_trial_button.click)
+
+        wait_timer = QTimer(parent=self)
+        wait_timer.setSingleShot(True)
+        wait_timer.setInterval(500)
+        wait_timer.timeout.connect(lambda: self.connect_signal.emit("standing"))
+        wait_timer.timeout.connect(lambda: self.stop_trial_button.setEnabled(True))
+        wait_timer.timeout.connect(standing_timer.start)
         wait_timer.start()
