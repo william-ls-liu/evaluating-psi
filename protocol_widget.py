@@ -109,6 +109,7 @@ def create_csv_export(
         threshold_percent: int,
         patient_id: str,
         patient_foot_measurement: str,
+        trial_type: str
 ) -> list:
 
     """Save data from a step trial as a .csv file.
@@ -138,6 +139,7 @@ def create_csv_export(
         ["Date/Time of Export:", datetime_of_export],
         ["Patient ID:", patient_id],
         ["Foot Measurement:", patient_foot_measurement],
+        ["Trial Type:", trial_type],
         ["APA Threshold:", threshold],
         ["Threshold Percentage:", threshold_percent],
         ["Stimulus Enabled:", stim_status],
@@ -151,10 +153,7 @@ def create_csv_export(
         ]
     ]
 
-    # Get the mean during quiet stance
-    quiet_stance_mean = np.mean(quiet_stance_data, axis=0, dtype=np.float64)
-
-    full_trial_data = np.subtract(step_data, quiet_stance_mean)
+    full_trial_data = [*quiet_stance_data, *step_data]
 
     for row in full_trial_data:
         CoPx, CoPy = calculate_center_of_pressure(row[FX], row[FY], row[FZ], row[MX], row[MY])
@@ -568,7 +567,6 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def start_trial_button_clicked(self) -> None:
-        print("START", self.trial_type)
         self.start_trial_button.setEnabled(False)
         self.start_baseline_button.setEnabled(False)
         self.trial_select_combobox.setEnabled(False)
@@ -583,7 +581,6 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def stop_trial_button_clicked(self) -> None:
-        print("STOP", self.trial_type)
         if self.trial_type == "Step Trial":
             self.disconnect_signal.emit("step")
         elif self.trial_type == "Standing Trial":
@@ -633,7 +630,8 @@ class ProtocolWidget(QWidget):
                     self.threshold,
                     self.threshold_percentage,
                     self.patient_id,
-                    self.patient_foot_measurement
+                    self.patient_foot_measurement,
+                    self.trial_type
                 )
                 file = open(fname[0], 'w+', newline='')
                 with file:
