@@ -132,6 +132,8 @@ def create_csv_export(
         patient identifier
     patient_foot_measurement
         patient's foot size
+    trial_type : str
+        a string that specifies the type of trial that was collected
     """
 
     datetime_of_export = str(datetime.now())
@@ -204,6 +206,7 @@ class ProtocolWidget(QWidget):
         # Initiate variables to store patient demographics
         self.patient_id = None
         self.patient_foot_measurement = None
+        self.demographics_saved = False
 
         # Create the parent layout
         layout = QGridLayout()
@@ -401,17 +404,45 @@ class ProtocolWidget(QWidget):
 
     @Slot(bool)
     def demographics_button_clicked(self, check_state: bool) -> None:
-        """"""
+        """Handle when user clicks `store_demographics_button`.
+
+        If user has not entered both a Patient ID and the Foot Measurement then
+        show a pop-up warning message telling them to do so. They will not be
+        able to collect any data (including baseline data) until they do so.
+
+        Parameters
+        ----------
+        check_state : bool
+            the check state of the `store_demographics_button`
+        """
+
+        # Get entry from the text boxes, remove whitespace at beginning and end
+        self.patient_id = self.patient_id_entry.text().strip()
+        self.patient_foot_measurement = self.foot_size_entry.text().strip()
+
         if check_state:
             self.store_demographics_button.setText("Store Patient Info")
         else:
-            self.store_demographics_button.setText("Edit Patient Info")
-            self.patient_id = self.patient_id_entry.text()
-            self.patient_foot_measurement = self.foot_size_entry.text()
+            if self.patient_id == "" or self.patient_foot_measurement == "":
+                message_box = QMessageBox(self)
+                message_box.setWindowTitle("Warning!")
+                message_box.setText(
+                    "You must enter a value for both the Patient ID and the Foot Measurement."
+                )
+                message_box.setIcon(QMessageBox.Warning)
+                message_box.setStandardButtons(QMessageBox.Ok)
+                message_box.exec()
+                self.store_demographics_button.setChecked(True)
+
+            else:
+                self.store_demographics_button.setText("Edit Patient Info")
 
         # Disable/enable the text entrys as appropriate
-        self.patient_id_entry.setEnabled(check_state)
-        self.foot_size_entry.setEnabled(check_state)
+        self.patient_id_entry.setEnabled(self.store_demographics_button.isChecked())
+        self.foot_size_entry.setEnabled(self.store_demographics_button.isChecked())
+
+        # Update the state variable to keep track of whether demographics info is saved
+        self.demographics_saved = not self.store_demographics_button.isChecked()
 
     @Slot(bool)
     def toggle_baseline_buttons(self, check_state: bool) -> None:
@@ -426,22 +457,35 @@ class ProtocolWidget(QWidget):
         cancel the baseline collection.
         """
 
-        message_box = QMessageBox(self)
-        message_box.setWindowTitle("Attention!")
-        message_box.setText(
-            "Instruct patient to step off the platform,\n"
-            "then hit the Auto-Zero button on the amplifier.\n"
-            "When you have done this click OK.")
-        message_box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        if self.demographics_saved:
+            message_box = QMessageBox(self)
+            message_box.setWindowTitle("Attention!")
+            message_box.setText(
+                "Instruct patient to step off the platform,\n"
+                "then hit the Auto-Zero button on the amplifier.\n"
+                "When you have done this click OK.")
+            message_box.setIcon(QMessageBox.Information)
+            message_box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
 
-        button = message_box.exec()
+            button = message_box.exec()
 
-        if button == QMessageBox.Ok:
-            self.disable_record_button_signal.emit()
-            self.stop_baseline_button.setEnabled(True)
-            self.collect_baseline_button.setEnabled(True)
-            self.start_baseline_button.setEnabled(False)
-            self.start_trial_button.setEnabled(False)
+            if button == QMessageBox.Ok:
+                self.disable_record_button_signal.emit()
+                self.stop_baseline_button.setEnabled(True)
+                self.collect_baseline_button.setEnabled(True)
+                self.start_baseline_button.setEnabled(False)
+                self.start_trial_button.setEnabled(False)
+
+        else:
+            message_box = QMessageBox(self)
+            message_box.setWindowTitle("Warning!")
+            message_box.setText(
+                "Patient ID and Foot Measurement have not been saved.\n"
+                "Before proceeding you must enter a Patient ID and Foot Measurement."
+            )
+            message_box.setIcon(QMessageBox.Warning)
+            message_box.setStandardButtons(QMessageBox.Ok)
+            message_box.exec()
 
     @Slot()
     def stop_baseline_button_clicked(self):
