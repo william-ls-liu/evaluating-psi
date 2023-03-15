@@ -1,7 +1,7 @@
 # Author: William Liu <liwi@ohsu.edu>
 
 from PySide6.QtWidgets import (QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout, QCheckBox,
-                               QFileDialog, QLineEdit)
+                               QFileDialog, QLineEdit, QRadioButton)
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Slot, Signal, Qt, QTimer
 from graph_viewer import BaselineGraphDialog, StepGraphDialog
@@ -109,7 +109,8 @@ def create_csv_export(
         threshold_percent: int,
         patient_id: str,
         patient_foot_measurement: str,
-        trial_type: str
+        trial_type: str,
+        stimulator_paradigm: str
 ) -> list:
 
     """Save data from a step trial as a .csv file.
@@ -134,7 +135,13 @@ def create_csv_export(
         patient's foot size
     trial_type : str
         a string that specifies the type of trial that was collected
+    stimulator_paradigm : str
+        a string descriping what stimulator condition was used for the trial
     """
+
+    # If stimulator disabled set the paradigm to None
+    if not stim_status:
+        stimulator_paradigm = None
 
     datetime_of_export = str(datetime.now())
     export = [
@@ -145,6 +152,7 @@ def create_csv_export(
         ["APA Threshold:", threshold],
         ["Threshold Percentage:", threshold_percent],
         ["Stimulus Enabled:", stim_status],
+        ["Stimulator Paradigm:", stimulator_paradigm],
         ["Collection Notes:", notes],
         [
             'Fx (N)', 'Fy (N)', 'Fz (N)',
@@ -361,8 +369,15 @@ class ProtocolWidget(QWidget):
         self.enable_stimulus_button.stateChanged.connect(self.enable_stimulus)
         self.stimulus_enabled = self.enable_stimulus_button.isChecked()
 
-        # Initialize the trial type, must happen after enable_stimulus_button has been created
-        self._set_trial_type(self.trial_select_combobox.currentText())  # Initialize the trial type
+        # Create buttons to select stimulation paradigm
+        self.test_reflex_btn = QRadioButton("Test", self)
+        self.test_reflex_btn.toggled.connect(self._change_stimulator_paradigm)
+        self.conditioned_reflex_btn = QRadioButton("Conditioned", self)
+        self.test_reflex_btn.toggle()
+
+        # Initialize the trial type, must happen after enable_stimulus_button
+        # has been created and after test_reflex and condition_reflex buttons
+        self._set_trial_type(self.trial_select_combobox.currentText())
 
         # Create buttons for starting/stopping the protocol
         self.start_trial_button = QPushButton(parent=self, text="Start Trial")
@@ -380,11 +395,13 @@ class ProtocolWidget(QWidget):
         self._update_trial_counter_label()
 
         # Add widgets to the layout
-        layout.addWidget(self.trial_select_combobox, 0, 0)
-        layout.addWidget(self.enable_stimulus_button, 1, 0)
-        layout.addWidget(self.start_trial_button, 2, 0)
-        layout.addWidget(self.stop_trial_button, 3, 0)
-        layout.addWidget(self.trial_counter_label, 4, 0)
+        layout.addWidget(self.trial_select_combobox, 0, 0, 1, 2)
+        layout.addWidget(self.test_reflex_btn, 1, 0, 1, 1)
+        layout.addWidget(self.conditioned_reflex_btn, 1, 1, 1, 1)
+        layout.addWidget(self.enable_stimulus_button, 2, 0, 1, 2)
+        layout.addWidget(self.start_trial_button, 3, 0, 1, 2)
+        layout.addWidget(self.stop_trial_button, 4, 0, 1, 2)
+        layout.addWidget(self.trial_counter_label, 5, 0, 1, 2)
 
     def _update_baseline_trial_counter_label(self) -> None:
         self.baseline_trial_counter_label.setText(
@@ -675,7 +692,8 @@ class ProtocolWidget(QWidget):
                     self.threshold_percentage,
                     self.patient_id,
                     self.patient_foot_measurement,
-                    self.trial_type
+                    self.trial_type,
+                    self.stimulator_paradigm
                 )
                 file = open(fname[0], 'w+', newline='')
                 with file:
@@ -701,9 +719,29 @@ class ProtocolWidget(QWidget):
 
         self.collection_notes = notes
 
+    @Slot(bool)
+    def _change_stimulator_paradigm(self, checked) -> None:
+        """Change the type of stimulator delivered.
+
+        Two exclusive radio buttons control the stimualtor paradigm.
+
+        Parameters
+        ----------
+        checked : bool
+            the check state of the "Test" RadioButton
+        """
+
+        if checked:
+            self.stimulator_paradigm = "Test"
+        else:
+            self.stimulator_paradigm = "Conditioned"
+        print(self.stimulator_paradigm)
+
     @Slot(int)
     def enable_stimulus(self) -> None:
         self.stimulus_enabled = self.enable_stimulus_button.isChecked()
+        self.test_reflex_btn.setEnabled(self.stimulus_enabled)
+        self.conditioned_reflex_btn.setEnabled(self.stimulus_enabled)
 
     @Slot(np.ndarray)
     def receive_data(self, data: np.ndarray) -> None:
