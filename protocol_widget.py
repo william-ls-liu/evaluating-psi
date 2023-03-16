@@ -1,6 +1,6 @@
 # Author: William Liu <liwi@ohsu.edu>
 
-from PySide6.QtWidgets import (QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout, QCheckBox,
+from PySide6.QtWidgets import (QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout,
                                QFileDialog, QLineEdit, QRadioButton)
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Slot, Signal, Qt, QTimer
@@ -110,7 +110,7 @@ def create_csv_export(
         patient_id: str,
         patient_foot_measurement: str,
         trial_type: str,
-        stimulator_paradigm: str
+        stimulator_setup: str
 ) -> list:
 
     """Save data from a step trial as a .csv file.
@@ -135,13 +135,9 @@ def create_csv_export(
         patient's foot size
     trial_type : str
         a string that specifies the type of trial that was collected
-    stimulator_paradigm : str
+    stimulator_setup : str
         a string descriping what stimulator condition was used for the trial
     """
-
-    # If stimulator disabled set the paradigm to None
-    if not stim_status:
-        stimulator_paradigm = None
 
     datetime_of_export = str(datetime.now())
     export = [
@@ -152,7 +148,7 @@ def create_csv_export(
         ["APA Threshold:", threshold],
         ["Threshold Percentage:", threshold_percent],
         ["Stimulus Enabled:", stim_status],
-        ["Stimulator Paradigm:", stimulator_paradigm],
+        ["Stimulator Setup:", stimulator_setup],
         ["Collection Notes:", notes],
         [
             'Fx (N)', 'Fy (N)', 'Fz (N)',
@@ -363,20 +359,20 @@ class ProtocolWidget(QWidget):
         self.trial_select_combobox.addItems(["Standing Trial", "Step Trial"])
         self.trial_select_combobox.currentTextChanged.connect(self._set_trial_type)
 
-        # Create button to enable/disable stimulus
-        self.enable_stimulus_button = QCheckBox(text="Enable stimulus", parent=self)
-        self.enable_stimulus_button.setFont(DEFAULT_FONT)
-        self.enable_stimulus_button.stateChanged.connect(self.enable_stimulus)
-        self.stimulus_enabled = self.enable_stimulus_button.isChecked()
+        # Create a label for specifying stimulator setup
+        stimulator_setup_label = QLabel("Stimulator Setup", parent=self)
+        stimulator_setup_label.setFont(DEFAULT_FONT)
 
         # Create buttons to select stimulation paradigm
-        self.test_reflex_btn = QRadioButton("Test", self)
-        self.test_reflex_btn.toggled.connect(self._change_stimulator_paradigm)
-        self.conditioned_reflex_btn = QRadioButton("Conditioned", self)
-        self.test_reflex_btn.toggle()
+        self.no_stimulus_btn = QRadioButton("None", self)
+        self.no_stimulus_btn.toggled.connect(self._no_stimulus_btn_toggled)
+        self.test_stimulus_btn = QRadioButton("Test", self)
+        self.test_stimulus_btn.toggled.connect(self._test_stimulus_btn_toggled)
+        self.conditioned_stimulus_btn = QRadioButton("Conditioned", self)
+        self.conditioned_stimulus_btn.toggled.connect(self._conditioned_stimulus_btn_toggled)
+        self.no_stimulus_btn.toggle()
 
-        # Initialize the trial type, must happen after enable_stimulus_button
-        # has been created and after test_reflex and condition_reflex buttons
+        # Initialize the trial type
         self._set_trial_type(self.trial_select_combobox.currentText())
 
         # Create buttons for starting/stopping the protocol
@@ -395,13 +391,14 @@ class ProtocolWidget(QWidget):
         self._update_trial_counter_label()
 
         # Add widgets to the layout
-        layout.addWidget(self.trial_select_combobox, 0, 0, 1, 2)
-        layout.addWidget(self.test_reflex_btn, 1, 0, 1, 1)
-        layout.addWidget(self.conditioned_reflex_btn, 1, 1, 1, 1)
-        layout.addWidget(self.enable_stimulus_button, 2, 0, 1, 2)
-        layout.addWidget(self.start_trial_button, 3, 0, 1, 2)
-        layout.addWidget(self.stop_trial_button, 4, 0, 1, 2)
-        layout.addWidget(self.trial_counter_label, 5, 0, 1, 2)
+        layout.addWidget(self.trial_select_combobox, 0, 0, 1, 3)
+        layout.addWidget(stimulator_setup_label, 1, 0, 1, 3)
+        layout.addWidget(self.no_stimulus_btn, 2, 0, 1, 1)
+        layout.addWidget(self.test_stimulus_btn, 2, 1, 1, 1)
+        layout.addWidget(self.conditioned_stimulus_btn, 2, 2, 1, 1)
+        layout.addWidget(self.start_trial_button, 3, 0, 1, 3)
+        layout.addWidget(self.stop_trial_button, 4, 0, 1, 3)
+        layout.addWidget(self.trial_counter_label, 5, 0, 1, 3)
 
     def _update_baseline_trial_counter_label(self) -> None:
         self.baseline_trial_counter_label.setText(
@@ -631,7 +628,6 @@ class ProtocolWidget(QWidget):
         self.start_trial_button.setEnabled(False)
         self.start_baseline_button.setEnabled(False)
         self.trial_select_combobox.setEnabled(False)
-        self.enable_stimulus_button.setEnabled(False)
         self.disable_record_button_signal.emit()
         if self.trial_type == "Step Trial":
             self._collect_quiet_stance("quiet stance")
@@ -651,7 +647,6 @@ class ProtocolWidget(QWidget):
         self.stop_trial_button.setEnabled(False)
         self.start_baseline_button.setEnabled(True)
         self.trial_select_combobox.setEnabled(True)
-        self.enable_stimulus_button.setEnabled(True)
         self.APA_detected = False
 
         # Open the GraphDialog
@@ -693,7 +688,7 @@ class ProtocolWidget(QWidget):
                     self.patient_id,
                     self.patient_foot_measurement,
                     self.trial_type,
-                    self.stimulator_paradigm
+                    self.stimulator_setup
                 )
                 file = open(fname[0], 'w+', newline='')
                 with file:
@@ -720,28 +715,68 @@ class ProtocolWidget(QWidget):
         self.collection_notes = notes
 
     @Slot(bool)
-    def _change_stimulator_paradigm(self, checked) -> None:
-        """Change the type of stimulator delivered.
-
-        Two exclusive radio buttons control the stimualtor paradigm.
+    def _no_stimulus_btn_toggled(self, checked) -> None:
+        """Handle user clicking the no stimulus button.
 
         Parameters
         ----------
         checked : bool
-            the check state of the "Test" RadioButton
+            bool indicating the check-state of the button
         """
 
         if checked:
-            self.stimulator_paradigm = "Test"
-        else:
-            self.stimulator_paradigm = "Conditioned"
-        print(self.stimulator_paradigm)
+            self.stimulator_setup = "None"
+            self.stimulus_enabled = False
 
-    @Slot(int)
-    def enable_stimulus(self) -> None:
-        self.stimulus_enabled = self.enable_stimulus_button.isChecked()
-        self.test_reflex_btn.setEnabled(self.stimulus_enabled)
-        self.conditioned_reflex_btn.setEnabled(self.stimulus_enabled)
+    @Slot(bool)
+    def _test_stimulus_btn_toggled(self, checked) -> None:
+        """Handle the user clicking the test stimulus button.
+
+        Parameters
+        ----------
+        checked : bool
+            bool indicating the check-state of the button
+        """
+
+        if checked:
+            message_box = QMessageBox(self)
+            message_box.setWindowTitle("Attention!")
+            message_box.setIcon(QMessageBox.Warning)
+            message_box.setStandardButtons(QMessageBox.Ok)
+            message_box.setText(
+                "Make sure you disconnect the DS8R BNC cable from the delay box.\n"
+                "Plug the NATUS BNC cable into the top port (SYNC) on the delay box. "
+                "Verify BNC connections on the delay box before proceeding."
+            )
+            message_box.exec()
+
+            self.stimulator_setup = "Test"
+            self.stimulus_enabled = True
+
+    @Slot(bool)
+    def _conditioned_stimulus_btn_toggled(self, checked) -> None:
+        """Handle the user clicking the conditioned stimulus button.
+
+        Parameters
+        ----------
+        checked : bool
+            bool indicating the check-state of the button
+        """
+
+        if checked:
+            message_box = QMessageBox(self)
+            message_box.setWindowTitle("Attention!")
+            message_box.setIcon(QMessageBox.Warning)
+            message_box.setStandardButtons(QMessageBox.Ok)
+            message_box.setText(
+                "Make sure you plug the DS8R BNC cable into the top port (SYNC)\n"
+                "of the delay box and the NATUS BNC cable into the bottom port\n"
+                "(OUT) of the delay box."
+            )
+            message_box.exec()
+
+            self.stimulator_setup = "Conditioned"
+            self.stimulus_enabled = True
 
     @Slot(np.ndarray)
     def receive_data(self, data: np.ndarray) -> None:
@@ -831,13 +866,6 @@ class ProtocolWidget(QWidget):
         """
 
         self.trial_type = type
-
-        if type == "Standing Trial":
-            self.enable_stimulus_button.setChecked(True)
-            self.enable_stimulus_button.setEnabled(False)
-        elif type == "Step Trial":
-            self.enable_stimulus_button.setChecked(False)
-            self.enable_stimulus_button.setEnabled(True)
 
     def _collect_quiet_stance(self, stage: str) -> None:
         """Collect data for `QUIET_STANCE_DURATION` amount of time.
