@@ -202,6 +202,8 @@ class ProtocolWidget(QWidget):
         a signal that connects this widget to the data stream from the DAQ
     disconnect_signal : PySide6.QtCore.Signal
         a signal that disconnects this widget from the data stream
+    stimulus_signal : PySide6.QtCore.Signal
+        a signal that indicates when a stimulus should be provided
     """
 
     disable_record_button_signal = Signal()
@@ -285,7 +287,7 @@ class ProtocolWidget(QWidget):
         self.store_demographics_button = QPushButton(parent=self, text="Store Patient Info")
         self.store_demographics_button.setCheckable(True)
         self.store_demographics_button.setChecked(True)
-        self.store_demographics_button.clicked.connect(self.demographics_button_clicked)
+        self.store_demographics_button.clicked.connect(self._demographics_button_clicked)
 
         layout.addWidget(patient_id_label, 0, 0)
         layout.addWidget(self.patient_id_entry, 0, 1)
@@ -304,19 +306,19 @@ class ProtocolWidget(QWidget):
 
         self.start_baseline_button = QPushButton(self, text="Start baseline collection")
         self.start_baseline_button.setEnabled(False)
-        self.start_baseline_button.clicked.connect(self.start_baseline_button_clicked)
+        self.start_baseline_button.clicked.connect(self._start_baseline_button_clicked)
 
         self.stop_baseline_button = QPushButton(self, text="Stop baseline collection")
         self.stop_baseline_button.setEnabled(False)
-        self.stop_baseline_button.clicked.connect(self.stop_baseline_button_clicked)
+        self.stop_baseline_button.clicked.connect(self._stop_baseline_button_clicked)
 
         self.collect_baseline_button = QPushButton(self, text="Collect a step")
         self.collect_baseline_button.setEnabled(False)
-        self.collect_baseline_button.clicked.connect(self.collect_baseline_button_clicked)
+        self.collect_baseline_button.clicked.connect(self._collect_baseline_button_clicked)
 
         self.finish_baseline_button = QPushButton(parent=self, text="Finish step")
         self.finish_baseline_button.setEnabled(False)
-        self.finish_baseline_button.clicked.connect(self.finish_baseline_button_clicked)
+        self.finish_baseline_button.clicked.connect(self._finish_baseline_button_clicked)
 
         # Create a label to keep track of the number of baseline trials
         self.baseline_trial_counter = 0
@@ -398,11 +400,11 @@ class ProtocolWidget(QWidget):
         # Create buttons for starting/stopping the protocol
         self.start_trial_button = QPushButton(parent=self, text="Start Trial")
         self.start_trial_button.setEnabled(False)
-        self.start_trial_button.clicked.connect(self.start_trial_button_clicked)
+        self.start_trial_button.clicked.connect(self._start_trial_button_clicked)
 
         self.stop_trial_button = QPushButton(parent=self, text="Stop Trial")
         self.stop_trial_button.setEnabled(False)
-        self.stop_trial_button.clicked.connect(self.stop_trial_button_clicked)
+        self.stop_trial_button.clicked.connect(self._stop_trial_button_clicked)
 
         # Create label to track number of collected trials
         self.trial_counter = 0
@@ -437,7 +439,7 @@ class ProtocolWidget(QWidget):
         )
 
     @Slot(bool)
-    def demographics_button_clicked(self, check_state: bool) -> None:
+    def _demographics_button_clicked(self, check_state: bool) -> None:
         """Handle when user clicks `store_demographics_button`.
 
         If user has not entered both a Patient ID and the Foot Measurement then
@@ -484,7 +486,7 @@ class ProtocolWidget(QWidget):
         self.stop_baseline_button.setEnabled(check_state)
 
     @Slot()
-    def start_baseline_button_clicked(self):
+    def _start_baseline_button_clicked(self):
         """Open blocking message when the user starts baseline APA collection.
 
         Window prompts user to Hardware Zero the force platform. User can also
@@ -514,7 +516,7 @@ class ProtocolWidget(QWidget):
             demographics_warning(self)
 
     @Slot()
-    def stop_baseline_button_clicked(self):
+    def _stop_baseline_button_clicked(self):
         """Opens dialog for user to stop baseline collection, if they choose.
 
         Pop-up message box will allow user to save any previously collected
@@ -560,7 +562,7 @@ class ProtocolWidget(QWidget):
             self.enable_record_button_signal.emit()
 
     @Slot()
-    def collect_baseline_button_clicked(self):
+    def _collect_baseline_button_clicked(self):
         if self.demographics_saved:
             self.collect_baseline_button.setEnabled(False)
             self.stop_baseline_button.setEnabled(False)
@@ -569,7 +571,7 @@ class ProtocolWidget(QWidget):
             demographics_warning(self)
 
     @Slot()
-    def finish_baseline_button_clicked(self):
+    def _finish_baseline_button_clicked(self):
         self.disconnect_signal.emit("baseline")
         self.collect_baseline_button.setEnabled(True)
         self.finish_baseline_button.setEnabled(False)
@@ -593,11 +595,11 @@ class ProtocolWidget(QWidget):
         graph_dialog = BaselineGraphDialog(corrected_mediolateral_force, peaks, valleys, parent=self)
         graph_dialog.open()
         graph_dialog.finished.connect(
-            lambda result: self.handle_baseline_trial(result, corrected_mediolateral_force, peaks, valleys)
+            lambda result: self._handle_baseline_trial(result, corrected_mediolateral_force, peaks, valleys)
         )
 
     @Slot(int)
-    def handle_baseline_trial(
+    def _handle_baseline_trial(
         self,
         result: int,
         corrected_mediolateral_force: np.ndarray,
@@ -639,7 +641,7 @@ class ProtocolWidget(QWidget):
         self.incoming_data_storage.clear()
 
     @Slot()
-    def start_trial_button_clicked(self) -> None:
+    def _start_trial_button_clicked(self) -> None:
         if self.demographics_saved:
             self.start_trial_button.setEnabled(False)
             self.start_baseline_button.setEnabled(False)
@@ -658,7 +660,7 @@ class ProtocolWidget(QWidget):
             demographics_warning(self)
 
     @Slot()
-    def stop_trial_button_clicked(self) -> None:
+    def _stop_trial_button_clicked(self) -> None:
         if self.trial_type == "Step Trial":
             self.disconnect_signal.emit("step")
         elif self.trial_type == "Standing Trial":
@@ -684,12 +686,12 @@ class ProtocolWidget(QWidget):
         """
 
         graph_dialog = StepGraphDialog(self.incoming_data_storage, parent=self)
-        graph_dialog.finished.connect(self.handle_step_trial)
-        graph_dialog.notes_signal.connect(self.receive_collection_notes)
+        graph_dialog.finished.connect(self._handle_step_trial)
+        graph_dialog.notes_signal.connect(self._receive_collection_notes)
         graph_dialog.open()
 
     @Slot(int)
-    def handle_step_trial(self, result: int):
+    def _handle_step_trial(self, result: int):
         """Save or discard a step trial."""
 
         if result == 1:
@@ -727,7 +729,7 @@ class ProtocolWidget(QWidget):
         self.quiet_stance_data.clear()
 
     @Slot(str)
-    def receive_collection_notes(self, notes: str) -> None:
+    def _receive_collection_notes(self, notes: str) -> None:
         """Slot that receives notes entered in the step graph dialog.
 
         Parameters
@@ -908,17 +910,17 @@ class ProtocolWidget(QWidget):
         if stage == "baseline":
             quiet_stance_timer.timeout.connect(lambda: self.finish_baseline_button.setEnabled(True))
         elif stage == "quiet stance":
-            quiet_stance_timer.timeout.connect(self.calculate_quiet_stance)
+            quiet_stance_timer.timeout.connect(self._calculate_quiet_stance)
             quiet_stance_timer.timeout.connect(lambda: self.disconnect_signal.emit(stage))
         elif stage == "standing quiet stance":
-            quiet_stance_timer.timeout.connect(self.standing_trial)
+            quiet_stance_timer.timeout.connect(self._standing_trial)
             quiet_stance_timer.timeout.connect(lambda: self.disconnect_signal.emit(stage))
 
         quiet_stance_timer.start()
         self.connect_signal.emit(stage)
 
     @Slot()
-    def calculate_quiet_stance(self) -> None:
+    def _calculate_quiet_stance(self) -> None:
         """Calculate the mean mediolateral force during quiet stance."""
 
         self._quiet_stance_force = np.mean(get_mediolateral_force(self.incoming_data_storage))
@@ -932,7 +934,7 @@ class ProtocolWidget(QWidget):
         wait_timer.start()
 
     @Slot()
-    def standing_trial(self) -> None:
+    def _standing_trial(self) -> None:
         """Runs the protocol for a standing trial.
 
         A standing trial consists of 10 successive stimuli, with 10 seconds
