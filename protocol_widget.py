@@ -169,6 +169,26 @@ def create_csv_export(
     return export
 
 
+def demographics_warning(parent: QWidget) -> None:
+    """Opens a pop-up to warn that patient demographics have not been saved.
+
+    Parameters
+    ----------
+    parent : QWidget
+        a parent widget for this pop-up
+    """
+
+    message_box = QMessageBox(parent=parent)
+    message_box.setWindowTitle("Warning!")
+    message_box.setText(
+        "Patient ID and Foot Measurement have not been saved.\n"
+        "Before proceeding you must enter a Patient ID and Foot Measurement."
+    )
+    message_box.setIcon(QMessageBox.Warning)
+    message_box.setStandardButtons(QMessageBox.Ok)
+    message_box.exec()
+
+
 class ProtocolWidget(QWidget):
     """Sidebar with buttons that control data collection and display progress.
 
@@ -491,15 +511,7 @@ class ProtocolWidget(QWidget):
                 self.start_trial_button.setEnabled(False)
 
         else:
-            message_box = QMessageBox(self)
-            message_box.setWindowTitle("Warning!")
-            message_box.setText(
-                "Patient ID and Foot Measurement have not been saved.\n"
-                "Before proceeding you must enter a Patient ID and Foot Measurement."
-            )
-            message_box.setIcon(QMessageBox.Warning)
-            message_box.setStandardButtons(QMessageBox.Ok)
-            message_box.exec()
+            demographics_warning(self)
 
     @Slot()
     def stop_baseline_button_clicked(self):
@@ -549,9 +561,12 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def collect_baseline_button_clicked(self):
-        self.collect_baseline_button.setEnabled(False)
-        self.stop_baseline_button.setEnabled(False)
-        self._collect_quiet_stance("baseline")
+        if self.demographics_saved:
+            self.collect_baseline_button.setEnabled(False)
+            self.stop_baseline_button.setEnabled(False)
+            self._collect_quiet_stance("baseline")
+        else:
+            demographics_warning(self)
 
     @Slot()
     def finish_baseline_button_clicked(self):
@@ -625,16 +640,22 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def start_trial_button_clicked(self) -> None:
-        self.start_trial_button.setEnabled(False)
-        self.start_baseline_button.setEnabled(False)
-        self.trial_select_combobox.setEnabled(False)
-        self.disable_record_button_signal.emit()
-        if self.trial_type == "Step Trial":
-            self._collect_quiet_stance("quiet stance")
-        elif self.trial_type == "Standing Trial":
-            self._collect_quiet_stance("standing quiet stance")
+        if self.demographics_saved:
+            self.start_trial_button.setEnabled(False)
+            self.start_baseline_button.setEnabled(False)
+            self.trial_select_combobox.setEnabled(False)
+            self.no_stimulus_btn.setEnabled(False)
+            self.test_stimulus_btn.setEnabled(False)
+            self.conditioned_stimulus_btn.setEnabled(False)
+            self.disable_record_button_signal.emit()
+            if self.trial_type == "Step Trial":
+                self._collect_quiet_stance("quiet stance")
+            elif self.trial_type == "Standing Trial":
+                self._collect_quiet_stance("standing quiet stance")
+            else:
+                raise NameError(f"{self.trial_type} was not found.")
         else:
-            raise NameError(f"{self.trial_type} was not found.")
+            demographics_warning(self)
 
     @Slot()
     def stop_trial_button_clicked(self) -> None:
@@ -647,6 +668,9 @@ class ProtocolWidget(QWidget):
         self.stop_trial_button.setEnabled(False)
         self.start_baseline_button.setEnabled(True)
         self.trial_select_combobox.setEnabled(True)
+        self.no_stimulus_btn.setEnabled(True)
+        self.test_stimulus_btn.setEnabled(True)
+        self.conditioned_stimulus_btn.setEnabled(True)
         self.APA_detected = False
 
         # Open the GraphDialog
