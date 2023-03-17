@@ -9,6 +9,7 @@ import numpy as np
 from scipy.signal import find_peaks
 import csv
 from datetime import datetime
+from os.path import expanduser
 
 # How long (ms) quiet stance lasts before patient is instructed to take a step
 QUIET_STANCE_DURATION = 5_000
@@ -209,6 +210,26 @@ def data_streaming_warning(parent: QWidget) -> None:
     message_box.exec()
 
 
+def directory_not_set_warning(parent: QWidget) -> None:
+    """Opens a pop-up to warn that the export directory has not been set.
+
+    Parameters
+    ----------
+    parent : QWidget
+        a parent widget for this pop-up
+    """
+
+    message_box = QMessageBox(parent=parent)
+    message_box.setWindowTitle("Warning!")
+    message_box.setText(
+        "Cannot proceed with data collection until the export directory\n"
+        "has been set."
+    )
+    message_box.setIcon(QMessageBox.Warning)
+    message_box.setStandardButtons(QMessageBox.Ok)
+    message_box.exec()
+
+
 class ProtocolWidget(QWidget):
     """Sidebar with buttons that control data collection and display progress.
 
@@ -273,8 +294,8 @@ class ProtocolWidget(QWidget):
         trial_layout = QGridLayout()
 
         # Populate the layout
-        layout.addWidget(self.progress_label, 0, 0, Qt.AlignTop | Qt.AlignHCenter)
-        layout.addLayout(patient_info_layout, 1, 0, Qt.AlignTop)
+        layout.addWidget(self.progress_label, 0, 0)
+        layout.addLayout(patient_info_layout, 1, 0)
         layout.addLayout(baseline_layout, 2, 0)
         layout.addLayout(threshold_layout, 3, 0)
         layout.addLayout(trial_layout, 4, 0)
@@ -297,6 +318,13 @@ class ProtocolWidget(QWidget):
             an empty grid layout
         """
 
+        self.set_directory_btn = QPushButton("Set Export Location", parent=self)
+        self.set_directory_btn.clicked.connect(self._set_directory_button_clicked)
+        self.export_directory = ""  # Initialize to empty
+        self.current_directory_label = QLabel("No working directory has been set", parent=self)
+        self.current_directory_label.setScaledContents(True)
+        self.current_directory_label.setWordWrap(True)
+
         self.patient_id_entry = QLineEdit(parent=self)
         self.patient_id_entry.setPlaceholderText("Enter ID here")
         patient_id_label = QLabel("Patient ID", parent=self)
@@ -312,11 +340,13 @@ class ProtocolWidget(QWidget):
         self.store_demographics_button.setChecked(True)
         self.store_demographics_button.clicked.connect(self._demographics_button_clicked)
 
-        layout.addWidget(patient_id_label, 0, 0)
-        layout.addWidget(self.patient_id_entry, 0, 1)
-        layout.addWidget(foot_size_label)
-        layout.addWidget(self.foot_size_entry, 1, 1)
-        layout.addWidget(self.store_demographics_button, 2, 0, 1, 2)
+        layout.addWidget(self.set_directory_btn, 0, 0, 1, 2, Qt.AlignTop)
+        layout.addWidget(self.current_directory_label, 1, 0, 1, 2, Qt.AlignTop)
+        layout.addWidget(patient_id_label, 2, 0, Qt.AlignTop)
+        layout.addWidget(self.patient_id_entry, 2, 1, Qt.AlignTop)
+        layout.addWidget(foot_size_label, 3, 0, Qt.AlignTop)
+        layout.addWidget(self.foot_size_entry, 3, 1, Qt.AlignTop)
+        layout.addWidget(self.store_demographics_button, 4, 0, 1, 2, Qt.AlignTop)
 
     def _create_baseline_layout(self, layout: QGridLayout) -> None:
         """Create buttons for baseline collection, add them to a layout.
@@ -354,7 +384,7 @@ class ProtocolWidget(QWidget):
         layout.addWidget(self.stop_baseline_button, 0, 1)
         layout.addWidget(self.collect_baseline_button, 1, 0, 1, 2)
         layout.addWidget(self.finish_baseline_button, 2, 0, 1, 2)
-        layout.addWidget(self.baseline_trial_counter_label, 3, 0, 1, -1, Qt.AlignTop)
+        layout.addWidget(self.baseline_trial_counter_label, 3, 0, 1, 2, Qt.AlignTop)
 
     def _create_threshold_layout(self, layout: QGridLayout) -> None:
         """Create buttons for setting/displaying APA threshold.
@@ -387,8 +417,8 @@ class ProtocolWidget(QWidget):
         self._update_APA_threshold_label()
 
         layout.addWidget(self.threshold_percentage_entry, 0, 3)
-        layout.addWidget(self.threshold_percentage_label, 0, 0, 1, 3)
-        layout.addWidget(self.threshold_label, 1, 0, 1, -1, Qt.AlignTop)
+        layout.addWidget(self.threshold_percentage_label, 0, 0, 1, 2)
+        layout.addWidget(self.threshold_label, 1, 0, 1, 2, Qt.AlignTop)
 
     def _create_trial_layout(self, layout: QGridLayout) -> None:
         """Add widgets to the trial layout.
@@ -460,6 +490,22 @@ class ProtocolWidget(QWidget):
         self.trial_counter_label.setText(
             f"Number of trials collected: {self.trial_counter}"
         )
+
+    @Slot()
+    def _set_directory_button_clicked(self) -> None:
+        """"""
+
+        self.export_directory = QFileDialog.getExistingDirectory(
+            parent=self,
+            caption="Select a folder where the data will be saved.",
+            dir=expanduser("~"),
+            options=QFileDialog.ShowDirsOnly
+        )
+
+        if not self.export_directory == "":
+            self.current_directory_label.setText(f"Directory set as: {self.export_directory}")
+        else:
+            self.current_directory_label.setText("No working directory has been set")
 
     @Slot(bool)
     def _demographics_button_clicked(self, check_state: bool) -> None:
@@ -668,19 +714,22 @@ class ProtocolWidget(QWidget):
     def _start_trial_button_clicked(self) -> None:
         if self.demographics_saved:
             if self.data_is_streaming:
-                self.start_trial_button.setEnabled(False)
-                self.start_baseline_button.setEnabled(False)
-                self.trial_select_combobox.setEnabled(False)
-                self.no_stimulus_btn.setEnabled(False)
-                self.test_stimulus_btn.setEnabled(False)
-                self.conditioned_stimulus_btn.setEnabled(False)
-                self.disable_record_button_signal.emit()
-                if self.trial_type == "Step Trial":
-                    self._collect_quiet_stance("quiet stance")
-                elif self.trial_type == "Standing Trial":
-                    self._collect_quiet_stance("standing quiet stance")
+                if not self.export_directory == "":
+                    self.start_trial_button.setEnabled(False)
+                    self.start_baseline_button.setEnabled(False)
+                    self.trial_select_combobox.setEnabled(False)
+                    self.no_stimulus_btn.setEnabled(False)
+                    self.test_stimulus_btn.setEnabled(False)
+                    self.conditioned_stimulus_btn.setEnabled(False)
+                    self.disable_record_button_signal.emit()
+                    if self.trial_type == "Step Trial":
+                        self._collect_quiet_stance("quiet stance")
+                    elif self.trial_type == "Standing Trial":
+                        self._collect_quiet_stance("standing quiet stance")
+                    else:
+                        raise NameError(f"{self.trial_type} was not found.")
                 else:
-                    raise NameError(f"{self.trial_type} was not found.")
+                    directory_not_set_warning(self)
             else:
                 data_streaming_warning(self)
         else:
