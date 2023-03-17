@@ -9,7 +9,7 @@ import numpy as np
 from scipy.signal import find_peaks
 import csv
 from datetime import datetime
-from os.path import expanduser
+import os.path
 
 # How long (ms) quiet stance lasts before patient is instructed to take a step
 QUIET_STANCE_DURATION = 5_000
@@ -228,6 +228,30 @@ def directory_not_set_warning(parent: QWidget) -> None:
     message_box.setIcon(QMessageBox.Warning)
     message_box.setStandardButtons(QMessageBox.Ok)
     message_box.exec()
+
+
+def generate_filename(patient_id, trial_type, stimulator_setup) -> str:
+    """Create a standard filename based on info collected from the user.
+
+    Parameters
+    ----------
+    patient_id : str
+        a de-identified patient code
+    trial_type : str
+        the type of trial that was collected
+    stimulator_setup : str
+        the configuration of the stimulator(s) used for a trial
+    """
+
+    if trial_type == "Step Trial":
+        trial = "Stepping"
+    else:
+        trial = "Standing"
+
+    if stimulator_setup == "None":
+        stimulator_setup = "NoStimulus"
+
+    return f"{patient_id}_{trial}_{stimulator_setup}.csv"
 
 
 class ProtocolWidget(QWidget):
@@ -498,7 +522,7 @@ class ProtocolWidget(QWidget):
         self.export_directory = QFileDialog.getExistingDirectory(
             parent=self,
             caption="Select a folder where the data will be saved.",
-            dir=expanduser("~"),
+            dir=os.path.expanduser("~"),
             options=QFileDialog.ShowDirsOnly
         )
 
@@ -772,8 +796,11 @@ class ProtocolWidget(QWidget):
 
         if result == 1:
 
+            file_name = generate_filename(self.patient_id, self.trial_type, self.stimulator_setup)
+
             fname = QFileDialog.getSaveFileName(
                 parent=self,
+                dir=os.path.join(self.export_directory, file_name),
                 caption="Select a location to save the trial.",
                 filter="*.csv"
             )
