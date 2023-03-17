@@ -189,6 +189,26 @@ def demographics_warning(parent: QWidget) -> None:
     message_box.exec()
 
 
+def data_streaming_warning(parent: QWidget) -> None:
+    """Opens a pop-up to warn that the data is not streaming from the DAQ.
+
+    Parameters
+    ----------
+    parent : QWidget
+        a parent widget for this pop-up
+    """
+
+    message_box = QMessageBox(parent=parent)
+    message_box.setWindowTitle("Warning!")
+    message_box.setText(
+        "Click the Record button to start data stream, then proceed with\n"
+        "the data collection."
+    )
+    message_box.setIcon(QMessageBox.Warning)
+    message_box.setStandardButtons(QMessageBox.Ok)
+    message_box.exec()
+
+
 class ProtocolWidget(QWidget):
     """Sidebar with buttons that control data collection and display progress.
 
@@ -225,6 +245,9 @@ class ProtocolWidget(QWidget):
         self.baseline_data = dict()
         self.incoming_data_storage = list()
         self.quiet_stance_data = list()
+
+        # Initiate a variable to store whether the DAQ is streaming or not
+        self.data_is_streaming = False
 
         # Initiate variables to store whether an APA has been detected
         self.APA_detected = False
@@ -484,6 +507,7 @@ class ProtocolWidget(QWidget):
     def toggle_baseline_buttons(self, check_state: bool) -> None:
         self.start_baseline_button.setEnabled(check_state)
         self.stop_baseline_button.setEnabled(check_state)
+        self.data_is_streaming = check_state
 
     @Slot()
     def _start_baseline_button_clicked(self):
@@ -643,19 +667,22 @@ class ProtocolWidget(QWidget):
     @Slot()
     def _start_trial_button_clicked(self) -> None:
         if self.demographics_saved:
-            self.start_trial_button.setEnabled(False)
-            self.start_baseline_button.setEnabled(False)
-            self.trial_select_combobox.setEnabled(False)
-            self.no_stimulus_btn.setEnabled(False)
-            self.test_stimulus_btn.setEnabled(False)
-            self.conditioned_stimulus_btn.setEnabled(False)
-            self.disable_record_button_signal.emit()
-            if self.trial_type == "Step Trial":
-                self._collect_quiet_stance("quiet stance")
-            elif self.trial_type == "Standing Trial":
-                self._collect_quiet_stance("standing quiet stance")
+            if self.data_is_streaming:
+                self.start_trial_button.setEnabled(False)
+                self.start_baseline_button.setEnabled(False)
+                self.trial_select_combobox.setEnabled(False)
+                self.no_stimulus_btn.setEnabled(False)
+                self.test_stimulus_btn.setEnabled(False)
+                self.conditioned_stimulus_btn.setEnabled(False)
+                self.disable_record_button_signal.emit()
+                if self.trial_type == "Step Trial":
+                    self._collect_quiet_stance("quiet stance")
+                elif self.trial_type == "Standing Trial":
+                    self._collect_quiet_stance("standing quiet stance")
+                else:
+                    raise NameError(f"{self.trial_type} was not found.")
             else:
-                raise NameError(f"{self.trial_type} was not found.")
+                data_streaming_warning(self)
         else:
             demographics_warning(self)
 
