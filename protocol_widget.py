@@ -102,6 +102,7 @@ def calculate_center_of_pressure(fx, fy, fz, mx, my) -> tuple:
 
 
 def create_csv_export(
+        datetime_of_export: str,
         step_data: list,
         quiet_stance_data: list,
         notes: str,
@@ -111,13 +112,16 @@ def create_csv_export(
         patient_id: str,
         patient_foot_measurement: str,
         trial_type: str,
-        stimulator_setup: str
+        stimulator_setup: str,
+        vibrotactile: bool
 ) -> list:
 
     """Save data from a step trial as a .csv file.
 
     Parameters
     ----------
+    datetime_of_export : str
+        string representing the date/time the export was generated
     step_data : list
         data recorded during a step trial
     quiet_stance_data : list
@@ -138,9 +142,10 @@ def create_csv_export(
         a string that specifies the type of trial that was collected
     stimulator_setup : str
         a string descriping what stimulator condition was used for the trial
+    vibrotactile : bool
+        a bool describing whether vibrotactile stimulation was used
     """
 
-    datetime_of_export = str(datetime.now())
     export = [
         ["Date/Time of Export:", datetime_of_export],
         ["Patient ID:", patient_id],
@@ -150,6 +155,7 @@ def create_csv_export(
         ["Threshold Percentage:", threshold_percent],
         ["Stimulus Enabled:", stim_status],
         ["Stimulator Setup:", stimulator_setup],
+        ["Vibrotactile:", vibrotactile],
         ["Collection Notes:", notes],
         [
             'Fx (N)', 'Fy (N)', 'Fz (N)',
@@ -230,7 +236,7 @@ def directory_not_set_warning(parent: QWidget) -> None:
     message_box.exec()
 
 
-def generate_filename(patient_id, trial_type, stimulator_setup) -> str:
+def generate_filename(patient_id, trial_type, stimulator_setup, vibrotactile) -> str:
     """Create a standard filename based on info collected from the user.
 
     Parameters
@@ -241,6 +247,8 @@ def generate_filename(patient_id, trial_type, stimulator_setup) -> str:
         the type of trial that was collected
     stimulator_setup : str
         the configuration of the stimulator(s) used for a trial
+    vibrotactile : bool
+        a bool describing whether vibrotactile stimulation was used
     """
 
     if trial_type == "Step Trial":
@@ -251,7 +259,14 @@ def generate_filename(patient_id, trial_type, stimulator_setup) -> str:
     if stimulator_setup == "None":
         stimulator_setup = "NoStimulus"
 
-    return f"{patient_id}_{trial}_{stimulator_setup}.csv"
+    if vibrotactile:
+        vibrotactile = "Vibrotactile"
+    else:
+        vibrotactile = "NoVibrotactile"
+
+    now = datetime.today().strftime("%Y%m%d-%H%M%S")
+
+    return f"{patient_id}_{trial}_{stimulator_setup}_{vibrotactile}_{now}.csv", now
 
 
 class ProtocolWidget(QWidget):
@@ -796,7 +811,9 @@ class ProtocolWidget(QWidget):
 
         if result == 1:
 
-            file_name = generate_filename(self.patient_id, self.trial_type, self.stimulator_setup)
+            file_name, datetime_of_export = generate_filename(
+                self.patient_id, self.trial_type, self.stimulator_setup, self.vibrotactile_used
+            )
 
             fname = QFileDialog.getSaveFileName(
                 parent=self,
@@ -808,6 +825,7 @@ class ProtocolWidget(QWidget):
             if fname[0] != '':
 
                 to_csv = create_csv_export(
+                    datetime_of_export,
                     self.incoming_data_storage,
                     self.quiet_stance_data,
                     self.collection_notes,
@@ -817,8 +835,10 @@ class ProtocolWidget(QWidget):
                     self.patient_id,
                     self.patient_foot_measurement,
                     self.trial_type,
-                    self.stimulator_setup
+                    self.stimulator_setup,
+                    self.vibrotactile_used
                 )
+
                 file = open(fname[0], 'w+', newline='')
                 with file:
                     write = csv.writer(file)
