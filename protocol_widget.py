@@ -21,15 +21,15 @@ DEFAULT_FONT_BOLD = QFont("Arial", 14, QFont.Bold)
 # Z-offset of the force platform, in meters
 ZOFF = -0.040934
 
-# Indexes of platform axes
+# Indexes of platform axes and EMG channels
 FX = 0
 FY = 1
 FZ = 2
 MX = 3
 MY = 4
 MZ = 5
-EMG_1 = 6
-EMG_2 = 7
+EMG_1 = 6  # Physical EMG #7
+EMG_2 = 7  # Physical EMG #6
 STIM = 8
 
 
@@ -154,7 +154,7 @@ def create_csv_export(
         [
             'Fx (N)', 'Fy (N)', 'Fz (N)',
             'Mx (N/m)', 'My (N/m)', 'Mz (N/m)',
-            'EMG_Tib (V)', 'EMG_Sol (V)',
+            'EMG_Tibialis (V)', 'EMG_Soleus (V)',
             'CoPx (m)', 'CoPy (m)',
             'Stim'
         ]
