@@ -71,8 +71,7 @@ class DataWorker(QObject):
     @Slot()
     def get_data_from_daq(self):
         """Read 1 sample per channel from the DAQ."""
-        data = self.DAQ_device.read()
-        self.data_signal.emit(data)
+        self.data_signal.emit(self.DAQ_device.read())
 
     @Slot()
     def start_sampling(self):
