@@ -458,6 +458,11 @@ class ProtocolWidget(QWidget):
         self.trial_select_combobox.addItems(["Standing Trial", "Step Trial"])
         self.trial_select_combobox.currentTextChanged.connect(self._set_trial_type)
 
+        # Create combobox to select Virbotactile/No Vibrotactile
+        self.vibrotactile_combobox = QComboBox(parent=self)
+        self.vibrotactile_combobox.addItems(["With Vibrotactile", "Without Vibrotactile"])
+        self.vibrotactile_combobox.currentTextChanged.connect(self._set_vibrotactile)
+
         # Create a label for specifying stimulator setup
         stimulator_setup_label = QLabel("Stimulator Setup", parent=self)
         stimulator_setup_label.setFont(DEFAULT_FONT)
@@ -471,8 +476,9 @@ class ProtocolWidget(QWidget):
         self.conditioned_stimulus_btn.toggled.connect(self._conditioned_stimulus_btn_toggled)
         self.no_stimulus_btn.toggle()
 
-        # Initialize the trial type
+        # Initialize the trial type and vibrotactile condition
         self._set_trial_type(self.trial_select_combobox.currentText())
+        self._set_vibrotactile(self.vibrotactile_combobox.currentText())
 
         # Create buttons for starting/stopping the protocol
         self.start_trial_button = QPushButton(parent=self, text="Start Trial")
@@ -491,13 +497,14 @@ class ProtocolWidget(QWidget):
 
         # Add widgets to the layout
         layout.addWidget(self.trial_select_combobox, 0, 0, 1, 3)
-        layout.addWidget(stimulator_setup_label, 1, 0, 1, 3)
-        layout.addWidget(self.no_stimulus_btn, 2, 0, 1, 1)
-        layout.addWidget(self.test_stimulus_btn, 2, 1, 1, 1)
-        layout.addWidget(self.conditioned_stimulus_btn, 2, 2, 1, 1)
-        layout.addWidget(self.start_trial_button, 3, 0, 1, 3)
-        layout.addWidget(self.stop_trial_button, 4, 0, 1, 3)
-        layout.addWidget(self.trial_counter_label, 5, 0, 1, 3)
+        layout.addWidget(self.vibrotactile_combobox, 1, 0, 1, 3)
+        layout.addWidget(stimulator_setup_label, 2, 0, 1, 3)
+        layout.addWidget(self.no_stimulus_btn, 3, 0, 1, 1)
+        layout.addWidget(self.test_stimulus_btn, 3, 1, 1, 1)
+        layout.addWidget(self.conditioned_stimulus_btn, 3, 2, 1, 1)
+        layout.addWidget(self.start_trial_button, 4, 0, 1, 3)
+        layout.addWidget(self.stop_trial_button, 5, 0, 1, 3)
+        layout.addWidget(self.trial_counter_label, 6, 0, 1, 3)
 
     def _update_baseline_trial_counter_label(self) -> None:
         self.baseline_trial_counter_label.setText(
@@ -995,6 +1002,21 @@ class ProtocolWidget(QWidget):
         """
 
         self.trial_type = type
+
+    @Slot(str)
+    def _set_vibrotactile(self, status: str) -> None:
+        """Set whether vibrotactile stimulation was used.
+
+        Parameters
+        ----------
+        status : str
+            string that describes whether vibrotactile was used or not
+        """
+
+        if status == "With Vibrotactile":
+            self.vibrotactile_used = True
+        else:
+            self.vibrotactile_used = False
 
     def _collect_quiet_stance(self, stage: str) -> None:
         """Collect data for `QUIET_STANCE_DURATION` amount of time.
