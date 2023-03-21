@@ -280,12 +280,6 @@ class ProtocolWidget(QWidget):
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent=parent)
 
-        # Create a heading for the Widget
-        self.progress_label = QLabel(parent=self)
-        self.progress_label.setText("Protocol Status")
-        self.progress_label.setFont(DEFAULT_FONT_BOLD)
-        self.progress_label.setWordWrap(True)
-
         # Initiate variable to store the baseline data
         self.baseline_data = dict()
         self.incoming_data_storage = list()
@@ -318,11 +312,10 @@ class ProtocolWidget(QWidget):
         trial_layout = QGridLayout()
 
         # Populate the layout
-        layout.addWidget(self.progress_label, 0, 0)
-        layout.addLayout(patient_info_layout, 1, 0)
-        layout.addLayout(baseline_layout, 2, 0)
-        layout.addLayout(threshold_layout, 3, 0)
-        layout.addLayout(trial_layout, 4, 0)
+        layout.addLayout(patient_info_layout, 0, 0)
+        layout.addLayout(baseline_layout, 1, 0)
+        layout.addLayout(threshold_layout, 2, 0)
+        layout.addLayout(trial_layout, 3, 0)
 
         # Populate the baseline and threshold layouts
         self._create_patient_info_layout(patient_info_layout)
@@ -364,13 +357,13 @@ class ProtocolWidget(QWidget):
         self.store_demographics_button.setChecked(True)
         self.store_demographics_button.clicked.connect(self._demographics_button_clicked)
 
-        layout.addWidget(self.set_directory_btn, 0, 0, 1, 2, Qt.AlignTop)
+        layout.addWidget(self.set_directory_btn, 0, 0, 1, 2, Qt.AlignBottom)
         layout.addWidget(self.current_directory_label, 1, 0, 1, 2, Qt.AlignTop)
-        layout.addWidget(patient_id_label, 2, 0, Qt.AlignTop)
-        layout.addWidget(self.patient_id_entry, 2, 1, Qt.AlignTop)
-        layout.addWidget(foot_size_label, 3, 0, Qt.AlignTop)
-        layout.addWidget(self.foot_size_entry, 3, 1, Qt.AlignTop)
-        layout.addWidget(self.store_demographics_button, 4, 0, 1, 2, Qt.AlignTop)
+        layout.addWidget(patient_id_label, 2, 0)
+        layout.addWidget(self.patient_id_entry, 2, 1)
+        layout.addWidget(foot_size_label, 3, 0)
+        layout.addWidget(self.foot_size_entry, 3, 1)
+        layout.addWidget(self.store_demographics_button, 4, 0, 1, 2)
 
     def _create_baseline_layout(self, layout: QGridLayout) -> None:
         """Create buttons for baseline collection, add them to a layout.
