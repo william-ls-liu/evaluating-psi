@@ -2,7 +2,6 @@
 
 from PySide6.QtWidgets import (QWidget, QLabel, QPushButton, QMessageBox, QComboBox, QGridLayout,
                                QFileDialog, QLineEdit, QRadioButton)
-from PySide6.QtGui import QFont
 from PySide6.QtCore import Slot, Signal, Qt, QTimer
 from graph_viewer import BaselineGraphDialog, StepGraphDialog
 import numpy as np
@@ -10,27 +9,7 @@ from scipy.signal import find_peaks
 import csv
 from datetime import datetime
 import os.path
-
-# How long (ms) quiet stance lasts before patient is instructed to take a step
-QUIET_STANCE_DURATION = 5_000
-
-# Default fonts
-DEFAULT_FONT = QFont("Arial", 12)
-DEFAULT_FONT_BOLD = QFont("Arial", 14, QFont.Bold)
-
-# Z-offset of the force platform, in meters
-ZOFF = -0.040934
-
-# Indexes of platform axes and EMG channels
-FX = 0
-FY = 1
-FZ = 2
-MX = 3
-MY = 4
-MZ = 5
-EMG_1 = 6  # Physical EMG #7
-EMG_2 = 7  # Physical EMG #6
-STIM = 8
+import consts
 
 
 def get_mediolateral_force(data: list) -> list:
@@ -47,7 +26,7 @@ def get_mediolateral_force(data: list) -> list:
         list of force data along the x axis
     """
 
-    return [row[FX] for row in data]
+    return [row[consts.FX] for row in data]
 
 
 def calculate_force_delta(force: list) -> np.ndarray:
@@ -67,7 +46,7 @@ def calculate_force_delta(force: list) -> np.ndarray:
         an array of time-series force data, corrected for quiet stance
     """
 
-    quiet_stance = force[:QUIET_STANCE_DURATION]
+    quiet_stance = force[:consts.QUIET_STANCE_DURATION]
     force_during_quiet_stance = np.mean(quiet_stance)
 
     return np.array([f - force_during_quiet_stance for f in force])
@@ -95,8 +74,8 @@ def calculate_center_of_pressure(fx, fy, fz, mx, my) -> tuple:
         (x coordinate of the CoP, y coordinate of the CoP)
     """
 
-    cop_x = (-1) * ((my + (ZOFF * fx)) / fz)
-    cop_y = ((mx - (ZOFF * fy)) / fz)
+    cop_x = (-1) * ((my + (consts.ZOFF * fx)) / fz)
+    cop_y = ((mx - (consts.ZOFF * fy)) / fz)
 
     return cop_x, cop_y
 
@@ -169,8 +148,14 @@ def create_csv_export(
     full_trial_data = [*quiet_stance_data, *step_data]
 
     for row in full_trial_data:
-        CoPx, CoPy = calculate_center_of_pressure(row[FX], row[FY], row[FZ], row[MX], row[MY])
-        new_row = [row[FX], row[FY], row[FZ], row[MX], row[MY], row[MZ], row[EMG_1], row[EMG_2], CoPx, CoPy, row[STIM]]
+        CoPx, CoPy = calculate_center_of_pressure(
+            row[consts.FX], row[consts.FY], row[consts.FZ], row[consts.MX], row[consts.MY]
+        )
+        new_row = [
+            row[consts.FX], row[consts.FY], row[consts.FZ],
+            row[consts.MX], row[consts.MY], row[consts.MZ],
+            row[consts.EMG_1], row[consts.EMG_2], CoPx, CoPy, row[consts.STIM]
+        ]
         export.append(new_row)
 
     return export
@@ -360,12 +345,12 @@ class ProtocolWidget(QWidget):
         self.patient_id_entry = QLineEdit(parent=self)
         self.patient_id_entry.setPlaceholderText("Enter ID here")
         patient_id_label = QLabel("Patient ID", parent=self)
-        patient_id_label.setFont(DEFAULT_FONT)
+        patient_id_label.setFont(consts.DEFAULT_FONT)
 
         self.foot_size_entry = QLineEdit(parent=self)
         self.foot_size_entry.setPlaceholderText("Enter foot measurement here")
         foot_size_label = QLabel("Foot Measurement", parent=self)
-        foot_size_label.setFont(DEFAULT_FONT)
+        foot_size_label.setFont(consts.DEFAULT_FONT)
 
         self.store_demographics_button = QPushButton(parent=self, text="Store Patient Info")
         self.store_demographics_button.setCheckable(True)
@@ -408,7 +393,7 @@ class ProtocolWidget(QWidget):
         # Create a label to keep track of the number of baseline trials
         self.baseline_trial_counter = 0
         self.baseline_trial_counter_label = QLabel(parent=self)
-        self.baseline_trial_counter_label.setFont(DEFAULT_FONT)
+        self.baseline_trial_counter_label.setFont(consts.DEFAULT_FONT)
         self.baseline_trial_counter_label.setWordWrap(True)
         self._update_baseline_trial_counter_label()
 
@@ -435,7 +420,7 @@ class ProtocolWidget(QWidget):
 
         # Label for the ComboBox
         self.threshold_percentage_label = QLabel(parent=self)
-        self.threshold_percentage_label.setFont(DEFAULT_FONT)
+        self.threshold_percentage_label.setFont(consts.DEFAULT_FONT)
         self.threshold_percentage_label.setWordWrap(True)
         self.threshold_percentage_label.setText(
             "Select a % for the threshold:"
@@ -444,7 +429,7 @@ class ProtocolWidget(QWidget):
         # Label for tracking the APA threshold
         self.threshold = None
         self.threshold_label = QLabel(parent=self)
-        self.threshold_label.setFont(DEFAULT_FONT)
+        self.threshold_label.setFont(consts.DEFAULT_FONT)
         self.threshold_label.setWordWrap(True)
         self._update_APA_threshold_label()
 
@@ -473,7 +458,7 @@ class ProtocolWidget(QWidget):
 
         # Create a label for specifying stimulator setup
         stimulator_setup_label = QLabel("Stimulator Setup", parent=self)
-        stimulator_setup_label.setFont(DEFAULT_FONT)
+        stimulator_setup_label.setFont(consts.DEFAULT_FONT)
 
         # Create buttons to select stimulation paradigm
         self.no_stimulus_btn = QRadioButton("None", self)
@@ -500,7 +485,7 @@ class ProtocolWidget(QWidget):
         # Create label to track number of collected trials
         self.trial_counter = 0
         self.trial_counter_label = QLabel(parent=self)
-        self.trial_counter_label.setFont(DEFAULT_FONT)
+        self.trial_counter_label.setFont(consts.DEFAULT_FONT)
         self._update_trial_counter_label()
 
         # Add widgets to the layout
@@ -951,7 +936,7 @@ class ProtocolWidget(QWidget):
 
         stim = 0
         if self.APA_detected is False:
-            if abs(data[FX] - self._quiet_stance_force) > abs(self.threshold):
+            if abs(data[consts.FX] - self._quiet_stance_force) > abs(self.threshold):
                 if self.stimulus_enabled:
                     self.stimulus_signal.emit()
                     stim = 1
@@ -1042,7 +1027,7 @@ class ProtocolWidget(QWidget):
 
         quiet_stance_timer = QTimer(parent=self)
         quiet_stance_timer.setTimerType(Qt.PreciseTimer)
-        quiet_stance_timer.setInterval(QUIET_STANCE_DURATION)
+        quiet_stance_timer.setInterval(consts.QUIET_STANCE_DURATION)
         quiet_stance_timer.setSingleShot(True)
 
         if stage == "baseline":

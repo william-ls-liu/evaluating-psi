@@ -5,20 +5,11 @@ from PySide6.QtCore import Signal
 import matplotlib
 from matplotlib.backends.backend_qtagg import FigureCanvas, NavigationToolbar2QT
 from matplotlib.figure import Figure
+import consts
 matplotlib.use('Qt5Agg')
 
 
 matplotlib.rcParams.update({'font.size': 6})
-
-# Indexes of platform axes
-FX = 0
-FY = 1
-FZ = 2
-MX = 3
-MY = 4
-MZ = 5
-EMG_1 = 6
-EMG_2 = 7
 
 
 class GraphDialog(QDialog):
@@ -86,23 +77,23 @@ class StepGraphDialog(GraphDialog):
         self.setLayout(self.layout)
 
         self.mediolateral_force_graph = self.canvas.figure.add_subplot(3, 2, 1)
-        self.mediolateral_force_graph.plot([row[FX] for row in data])
+        self.mediolateral_force_graph.plot([row[consts.FX] for row in data])
         self.mediolateral_force_graph.set_title("Mediolateral Force (N)")
 
         self.anteroposterior_force_graph = self.canvas.figure.add_subplot(3, 2, 2)
-        self.anteroposterior_force_graph.plot([row[FY] for row in data])
+        self.anteroposterior_force_graph.plot([row[consts.FY] for row in data])
         self.anteroposterior_force_graph.set_title("Anteroposterior Force (N)")
 
         self.vertical_force_graph = self.canvas.figure.add_subplot(3, 2, 3)
-        self.vertical_force_graph.plot([row[FZ] for row in data])
+        self.vertical_force_graph.plot([row[consts.FZ] for row in data])
         self.vertical_force_graph.set_title("Vertical Force (N)")
 
         self.emg_tibialis_graph = self.canvas.figure.add_subplot(3, 2, 4)
-        self.emg_tibialis_graph.plot([row[EMG_1] for row in data])
+        self.emg_tibialis_graph.plot([row[consts.EMG_1] for row in data])
         self.emg_tibialis_graph.set_title("EMG Tibialis (V)")
 
         self.emg_soleus_graph = self.canvas.figure.add_subplot(3, 2, 5)
-        self.emg_soleus_graph.plot([row[EMG_2] for row in data])
+        self.emg_soleus_graph.plot([row[consts.EMG_2] for row in data])
         self.emg_soleus_graph.set_title("EMG Soleus (V)")
 
     def accept(self):

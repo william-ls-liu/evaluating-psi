@@ -4,62 +4,8 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout)
 from PySide6.QtCore import Slot, QTimer
 from pyqtgraph import GraphicsLayoutWidget
 import numpy as np
-from collections import namedtuple
 import json
-
-
-AmplifierRange = namedtuple(
-    "AmplifierRange",
-    [
-        'Fx_min',
-        'Fx_max',
-        'Fy_min',
-        'Fy_max',
-        'Fz_min',
-        'Fz_max',
-        'Mx_min',
-        'Mx_max',
-        'My_min',
-        'My_max',
-        'Mz_min',
-        'Mz_max'
-    ]
-)
-
-# Values found in NetForce software, change based on gain and excitation voltage
-AMPLIFIER_RANGE = AmplifierRange(
-    Fx_min=-192.73,
-    Fx_max=192.73,
-    Fy_min=-193.55,
-    Fy_max=193.55,
-    Fz_min=-1504.76,
-    Fz_max=1504.76,
-    Mx_min=-155.80,
-    Mx_max=155.80,
-    My_min=-154.96,
-    My_max=154.96,
-    Mz_min=-37.77,
-    Mz_max=37.77
-)
-
-# Seconds of recorded data to show
-SECONDS_TO_SHOW = 5
-
-# Z-offset of the force platform, in meters
-ZOFF = -0.040934
-
-# Indexes of platform axes
-FX = 0
-FY = 1
-FZ = 2
-MX = 3
-MY = 4
-MZ = 5
-EMG_1 = 6
-EMG_2 = 7
-
-# Cutoff for displaying center of pressure
-MINIMUM_VERTICAL_FORCE = 10
+import consts
 
 
 def calculate_center_of_pressure(fx, fy, fz, mx, my):
@@ -84,8 +30,8 @@ def calculate_center_of_pressure(fx, fy, fz, mx, my):
         (x coordinate of the CoP, y coordinate of the CoP)
     """
 
-    cop_x = (-1) * ((my + (ZOFF * fx)) / fz)
-    cop_y = ((mx - (ZOFF * fy)) / fz)
+    cop_x = (-1) * ((my + (consts.ZOFF * fx)) / fz)
+    cop_y = ((mx - (consts.ZOFF * fy)) / fz)
 
     return cop_x, cop_y
 
@@ -110,7 +56,7 @@ class PlotWidget(QWidget):
 
         # Initiate variables to store incoming data from DataWorker
         self._sample_rate = self._read_settings_file()
-        samples_to_show = SECONDS_TO_SHOW * self._sample_rate
+        samples_to_show = consts.SECONDS_TO_SHOW * self._sample_rate
         self.cop_xdirection = [0 for i in range(samples_to_show)]
         self.cop_ydirection = [0 for i in range(samples_to_show)]
         self.force_zdirection = [0 for i in range(samples_to_show)]
@@ -147,13 +93,13 @@ class PlotWidget(QWidget):
             incoming data
         """
 
-        if data[FZ] > MINIMUM_VERTICAL_FORCE:
+        if data[consts.FZ] > consts.MINIMUM_VERTICAL_FORCE:
             cop_x, cop_y = calculate_center_of_pressure(
-                data[FX],
-                data[FY],
-                data[FZ],
-                data[MX],
-                data[MY]
+                data[consts.FX],
+                data[consts.FY],
+                data[consts.FZ],
+                data[consts.MX],
+                data[consts.MY]
             )
         else:
             # This is super kludge, but basically want a threshold below which
@@ -169,12 +115,12 @@ class PlotWidget(QWidget):
         self.cop_ydirection.append(cop_y)
 
         self.force_zdirection = self.force_zdirection[1:]
-        self.force_zdirection.append(data[FZ])
+        self.force_zdirection.append(data[consts.FZ])
 
         self.emg_tibialis = self.emg_tibialis[1:]
-        self.emg_tibialis.append(data[EMG_1])
+        self.emg_tibialis.append(data[consts.EMG_1])
         self.emg_soleus = self.emg_soleus[1:]
-        self.emg_soleus.append(data[EMG_2])
+        self.emg_soleus.append(data[consts.EMG_2])
 
     @Slot()
     def update_plots(self) -> None:
@@ -237,7 +183,7 @@ class Plots(GraphicsLayoutWidget):
 
         # Create the vertical force graph
         self.fz_plot_item = self.addPlot(row=1, col=0, title="Vertical Force (N)")
-        self.fz_plot_item.setRange(yRange=(AMPLIFIER_RANGE.Fz_min, AMPLIFIER_RANGE.Fz_max))
+        self.fz_plot_item.setRange(yRange=(consts.FZ_MIN, consts.FZ_MAX))
         self.fz_plot_item.disableAutoRange(axis='y')
         self.fz_plot_item.hideAxis('bottom')
         self.fz_plot_line = self.fz_plot_item.plot(x=[0], y=[0])
