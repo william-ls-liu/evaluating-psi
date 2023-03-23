@@ -24,6 +24,9 @@ class DAQ:
         # Read the analog sensitivities
         self._analog_sensitivities = self._read_settings()
 
+        # Reset the device
+        self.dev.reset_device()
+
         # Perform the self test
         self.dev.self_test_device()
 
