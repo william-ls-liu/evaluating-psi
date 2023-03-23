@@ -749,6 +749,9 @@ class ProtocolWidget(QWidget):
                     self.no_stimulus_btn.setEnabled(False)
                     self.test_stimulus_btn.setEnabled(False)
                     self.conditioned_stimulus_btn.setEnabled(False)
+                    self.set_directory_btn.setEnabled(False)
+                    self.store_demographics_button.setEnabled(False)
+                    self.threshold_percentage_entry.setEnabled(False)
                     self.disable_record_button_signal.emit()
                     if self.trial_type == "Step Trial":
                         self._collect_quiet_stance("quiet stance")
@@ -778,6 +781,9 @@ class ProtocolWidget(QWidget):
         self.no_stimulus_btn.setEnabled(True)
         self.test_stimulus_btn.setEnabled(True)
         self.conditioned_stimulus_btn.setEnabled(True)
+        self.set_directory_btn.setEnabled(True)
+        self.store_demographics_button.setEnabled(True)
+        self.threshold_percentage_entry.setEnabled(True)
         self.APA_detected = False
 
         # Open the GraphDialog
