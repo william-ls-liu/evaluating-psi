@@ -291,6 +291,9 @@ class ProtocolWidget(QWidget):
         # Initiate variables to store whether an APA has been detected
         self.APA_detected = False
 
+        # Initiate variable to store number of stims during standing trial
+        self.number_of_stims_standing = 0
+
         # Initiate variables to store patient demographics
         self.patient_id = None
         self.patient_foot_measurement = None
@@ -837,6 +840,7 @@ class ProtocolWidget(QWidget):
 
         self.incoming_data_storage.clear()
         self.quiet_stance_data.clear()
+        self.number_of_stims_standing = 0
 
     @Slot(str)
     def _receive_collection_notes(self, notes: str) -> None:
@@ -957,10 +961,12 @@ class ProtocolWidget(QWidget):
         data : np.ndarray
             array of raw data read from the DAQ
         """
-
-        if len(self.incoming_data_storage) % 10_000 == 0:
+        if self.number_of_stims_standing == 10:
+            self.incoming_data_storage.append(np.append(data, 0))
+        elif len(self.incoming_data_storage) % 10_000 == 0:
             self.stimulus_signal.emit()
             self.incoming_data_storage.append(np.append(data, 1))
+            self.number_of_stims_standing += 1
         else:
             self.incoming_data_storage.append(np.append(data, 0))
 
@@ -1072,7 +1078,7 @@ class ProtocolWidget(QWidget):
 
         standing_timer = QTimer(parent=self)
         standing_timer.setSingleShot(True)
-        standing_timer.setInterval(95_000)
+        standing_timer.setInterval(100_000)
         standing_timer.setTimerType(Qt.PreciseTimer)
         standing_timer.timeout.connect(self.stop_trial_button.click)
 
