@@ -132,10 +132,6 @@ class DAQ:
 
     def read(self):
         """Read the data present in the buffer of the DAQ and convert the voltage value to Newtons."""
-        if not self.are_tasks:
-            raise KeyError("No active task. Use create_task() to create one.")
-        if not self.is_running:
-            raise KeyError("Task has not been started, use start() to begin the task.")
 
         return np.array(self.task.read()) / self._analog_sensitivities
 
