@@ -82,19 +82,10 @@ def calculate_center_of_pressure(fx, fy, fz, mx, my) -> tuple:
 
 def create_csv_export(
         datetime_of_export: str,
-        step_data: list,
-        quiet_stance_data: list,
-        notes: str,
-        stim_status: bool,
-        threshold: float,
-        threshold_percent: int,
         patient_id: str,
-        patient_right_foot_measurement: str,
-        patient_left_foot_measurement: str,
-        patient_malleolus_measurement: str,
-        trial_type: str,
-        stimulator_setup: str,
-        vibrotactile: bool
+        step_data: list,
+        quiet_stance_data: list = None,
+        **kwargs
 ) -> list:
 
     """Save data from a step trial as a .csv file.
@@ -103,57 +94,35 @@ def create_csv_export(
     ----------
     datetime_of_export : str
         string representing the date/time the export was generated
-    step_data : list
-        data recorded during a step trial
-    quiet_stance_data : list
-        data recorded during the quiet stance that precedes a step trial
-    notes : str
-        a str of user-entered notes
-    stim_status : bool
-        a bool to indicate whether stimulation was enabled during the trial
-    threshold : float
-        the threshold used to determine an APA
-    threshold_percent : int
-        the percent used to calculate threshold
     patient_id : str
         patient identifier
-    patient_right_foot_measurement : str
-        patient's right foot size, in centimeters
-    patient_left_foot_measurement : str
-        patient's left foot size, in centimeters
-    patient_malleolus_measurement : str
-        patient's malleolus measurement, in centimeters
-    trial_type : str
-        a string that specifies the type of trial that was collected
-    stimulator_setup : str
-        a string descriping what stimulator condition was used for the trial
-    vibrotactile : bool
-        a bool describing whether vibrotactile stimulation was used
+    step_data : list
+        data recorded during a step trial
+    quiet_stance_data : list, optional
+        data recorded during the quiet stance that precedes a step trial
+    **kwargs
+        additional rows to add to the export file
     """
 
     export = [
-        ["Date/Time of Export:", datetime_of_export],
-        ["Patient ID:", patient_id],
-        ["Right Foot Measurement (cm):", patient_right_foot_measurement],
-        ["Left Foot Measurement (cm):", patient_left_foot_measurement],
-        ["Malleolus Measurement (cm):", patient_malleolus_measurement],
-        ["Trial Type:", trial_type],
-        ["APA Threshold:", threshold],
-        ["Threshold Percentage:", threshold_percent],
-        ["Stimulus Enabled:", stim_status],
-        ["Stimulator Setup:", stimulator_setup],
-        ["Vibrotactile:", vibrotactile],
-        ["Collection Notes:", notes],
-        [
-            'Fx (N)', 'Fy (N)', 'Fz (N)',
-            'Mx (N/m)', 'My (N/m)', 'Mz (N/m)',
-            'EMG_Tibialis (V)', 'EMG_Soleus (V)',
-            'CoPx (m)', 'CoPy (m)',
-            'Stim'
-        ]
+        ["DateTimeOfExport", datetime_of_export],
+        ["PatientID", patient_id],
     ]
 
-    full_trial_data = [*quiet_stance_data, *step_data]
+    for label, value in kwargs.items():
+        export.append([label, value])
+
+    export.append(
+            ['Fx (N)', 'Fy (N)', 'Fz (N)',
+             'Mx (N/m)', 'My (N/m)', 'Mz (N/m)',
+             'EMG_Tibialis (V)', 'EMG_Soleus (V)',
+             'CoPx (m)', 'CoPy (m)', 'Stim']
+    )
+
+    if quiet_stance_data is None:
+        full_trial_data = step_data
+    else:
+        full_trial_data = [*quiet_stance_data, *step_data]
 
     for row in full_trial_data:
         CoPx, CoPy = calculate_center_of_pressure(
@@ -245,21 +214,31 @@ def generate_filename(patient_id, trial_type, stimulator_setup, vibrotactile) ->
     """
 
     if trial_type == "Step Trial":
-        trial = "Stepping"
+        trial = "step"
     else:
-        trial = "Standing"
+        trial = "stand"
 
     if stimulator_setup == "None":
-        stimulator_setup = "NoStimulus"
+        stimulator_setup = False
+    elif stimulator_setup == "Conditioned":
+        stimulator_setup = "cond"
+    elif stimulator_setup == "Test":
+        stimulator_setup = "test"
 
     if vibrotactile:
-        vibrotactile = "Vibrotactile"
+        vibrotactile = "vibro"
     else:
-        vibrotactile = "NoVibrotactile"
+        vibrotactile = False
 
-    now = datetime.today().strftime("%Y%m%d-%H%M%S")
+    if not stimulator_setup:
+        if not vibrotactile:
+            return f"{patient_id}_{trial}.csv"
+        return f"{patient_id}_{trial}_{vibrotactile}.csv"
 
-    return f"{patient_id}_{trial}_{stimulator_setup}_{vibrotactile}_{now}.csv", now
+    if not vibrotactile:
+        return f"{patient_id}_{trial}_{stimulator_setup}.csv"
+
+    return f"{patient_id}_{trial}_{stimulator_setup}_{vibrotactile}"
 
 
 class ProtocolWidget(QWidget):
@@ -728,7 +707,6 @@ class ProtocolWidget(QWidget):
         peaks: np.ndarray,
         valleys: np.ndarray
     ):
-
         """Save/discard the most recent baseline trial, based on user selection.
 
         Parameters
@@ -746,6 +724,29 @@ class ProtocolWidget(QWidget):
 
         if result == 1:
             self.baseline_trial_counter += 1
+            file_name = f"{self.patient_id}_baseline_off_{self.baseline_trial_counter}"
+            fname = QFileDialog.getSaveFileName(
+                parent=self,
+                dir=os.path.join(self.export_directory, file_name),
+                caption="Select a location to save the data.",
+                filter="*.csv"
+            )
+
+            if fname[0] != '':
+                now = datetime.today().strftime("%Y%m%d-%H%M%S")
+                to_csv = create_csv_export(
+                    now,
+                    self.patient_id,
+                    self.incoming_data_storage,
+                    RightFootMeasurement=self.patient_right_foot_measurement,
+                    LeftFootMeasurement=self.patient_left_foot_measurement,
+                    MalleolusMeasurement=self.patient_malleolus_measurement,
+                )
+                file = open(fname[0], 'w+', newline='')
+                with file:
+                    write = csv.writer(file)
+                    write.writerows(to_csv)
+
             # During a step there is usually a M/L force in the direction of the
             # swing leg followed by a M/L force in the direction of the stance
             # leg. To keep the code functional for a left or right step, look
@@ -832,7 +833,7 @@ class ProtocolWidget(QWidget):
 
         if result == 1:
 
-            file_name, datetime_of_export = generate_filename(
+            file_name = generate_filename(
                 self.patient_id, self.trial_type, self.stimulator_setup, self.vibrotactile_used
             )
 
@@ -844,22 +845,21 @@ class ProtocolWidget(QWidget):
             )
 
             if fname[0] != '':
-
+                now = datetime.today().strftime("%Y%m%d-%H%M%S")
                 to_csv = create_csv_export(
-                    datetime_of_export,
+                    now,
+                    self.patient_id,
                     self.incoming_data_storage,
                     self.quiet_stance_data,
-                    self.collection_notes,
-                    self.stimulus_enabled,
-                    self.threshold,
-                    self.threshold_percentage,
-                    self.patient_id,
-                    self.patient_right_foot_measurement,
-                    self.patient_left_foot_measurement,
-                    self.patient_malleolus_measurement,
-                    self.trial_type,
-                    self.stimulator_setup,
-                    self.vibrotactile_used
+                    RightFootMeasurement=self.patient_right_foot_measurement,
+                    LeftFootMeasurement=self.patient_left_foot_measurement,
+                    MalleolusMeasurement=self.patient_malleolus_measurement,
+                    TrialType=self.trial_type,
+                    Stimulus=self.stimulator_setup,
+                    Vibrotactile=self.vibrotactile_used,
+                    APAThreshold=self.threshold,
+                    APAThresholdPercentage=self.threshold_percentage,
+                    Notes=self.collection_notes,
                 )
 
                 file = open(fname[0], 'w+', newline='')
