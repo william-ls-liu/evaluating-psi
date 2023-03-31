@@ -911,7 +911,7 @@ class ProtocolWidget(QWidget):
 
     @Slot()
     def _reset_trial_counter(self) -> None:
-        """"""
+        """Reset the trial counter."""
 
         message_box = QMessageBox()
         message_box.setWindowTitle("Reset Trial Counter?")
@@ -1174,7 +1174,7 @@ class ProtocolWidget(QWidget):
 
         standing_timer = QTimer(parent=self)
         standing_timer.setSingleShot(True)
-        standing_timer.setInterval(100_000)
+        standing_timer.setInterval(103_000)
         standing_timer.setTimerType(Qt.PreciseTimer)
         standing_timer.timeout.connect(self.stop_trial_button.click)
 
