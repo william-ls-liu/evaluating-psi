@@ -91,6 +91,7 @@ def create_csv_export(
         patient_id: str,
         patient_right_foot_measurement: str,
         patient_left_foot_measurement: str,
+        patient_malleolus_measurement: str,
         trial_type: str,
         stimulator_setup: str,
         vibrotactile: bool
@@ -120,6 +121,8 @@ def create_csv_export(
         patient's right foot size, in centimeters
     patient_left_foot_measurement : str
         patient's left foot size, in centimeters
+    patient_malleolus_measurement : str
+        patient's malleolus measurement, in centimeters
     trial_type : str
         a string that specifies the type of trial that was collected
     stimulator_setup : str
@@ -133,6 +136,7 @@ def create_csv_export(
         ["Patient ID:", patient_id],
         ["Right Foot Measurement (cm):", patient_right_foot_measurement],
         ["Left Foot Measurement (cm):", patient_left_foot_measurement],
+        ["Malleolus Measurement (cm):", patient_malleolus_measurement],
         ["Trial Type:", trial_type],
         ["APA Threshold:", threshold],
         ["Threshold Percentage:", threshold_percent],
@@ -302,6 +306,7 @@ class ProtocolWidget(QWidget):
         self.patient_id = None
         self.patient_right_foot_measurement = None
         self.patient_left_foot_measurement = None
+        self.patient_malleolus_measurement = None
         self.demographics_saved = False
 
         # Create the parent layout
@@ -365,6 +370,11 @@ class ProtocolWidget(QWidget):
         left_foot_size_label = QLabel("Left foot (cm)", parent=self)
         left_foot_size_label.setFont(consts.DEFAULT_FONT)
 
+        self.malleolus_distance_entry = QLineEdit(parent=self)
+        self.malleolus_distance_entry.setPlaceholderText("Enter distance to malleolus here")
+        malleolus_distance_label = QLabel("Malleolus distance (cm)", parent=self)
+        malleolus_distance_label.setFont(consts.DEFAULT_FONT)
+
         self.store_demographics_button = QPushButton(parent=self, text="Store Patient Info")
         self.store_demographics_button.setCheckable(True)
         self.store_demographics_button.setChecked(True)
@@ -378,7 +388,9 @@ class ProtocolWidget(QWidget):
         layout.addWidget(self.right_foot_size_entry, 3, 1)
         layout.addWidget(left_foot_size_label, 4, 0)
         layout.addWidget(self.left_foot_size_entry, 4, 1)
-        layout.addWidget(self.store_demographics_button, 5, 0, 1, 2)
+        layout.addWidget(malleolus_distance_label, 5, 0)
+        layout.addWidget(self.malleolus_distance_entry, 5, 1)
+        layout.addWidget(self.store_demographics_button, 6, 0, 1, 2)
 
     def _create_baseline_layout(self, layout: QGridLayout) -> None:
         """Create buttons for baseline collection, add them to a layout.
@@ -564,6 +576,7 @@ class ProtocolWidget(QWidget):
         self.patient_id = self.patient_id_entry.text().strip()
         self.patient_right_foot_measurement = self.right_foot_size_entry.text().strip()
         self.patient_left_foot_measurement = self.left_foot_size_entry.text().strip()
+        self.patient_malleolus_measurement = self.malleolus_distance_entry.text().strip()
 
         if check_state:
             self.store_demographics_button.setText("Store Patient Info")
@@ -571,12 +584,13 @@ class ProtocolWidget(QWidget):
             if (
                 self.patient_id == "" or
                 self.patient_right_foot_measurement == "" or
-                self.patient_left_foot_measurement == ""
+                self.patient_left_foot_measurement == "" or
+                self.patient_malleolus_measurement == ""
             ):
                 message_box = QMessageBox(self)
                 message_box.setWindowTitle("Warning!")
                 message_box.setText(
-                    "You must enter values for Patient ID, Right Foot, and Left Foot."
+                    "You must enter values for Patient ID, Right Foot, Left Foot and Malleolus."
                 )
                 message_box.setIcon(QMessageBox.Warning)
                 message_box.setStandardButtons(QMessageBox.Ok)
@@ -589,6 +603,7 @@ class ProtocolWidget(QWidget):
         self.patient_id_entry.setEnabled(self.store_demographics_button.isChecked())
         self.right_foot_size_entry.setEnabled(self.store_demographics_button.isChecked())
         self.left_foot_size_entry.setEnabled(self.store_demographics_button.isChecked())
+        self.malleolus_distance_entry.setEnabled(self.store_demographics_button.isChecked())
 
         # Update the state variable to keep track of whether demographics info is saved
         self.demographics_saved = not self.store_demographics_button.isChecked()
@@ -848,6 +863,7 @@ class ProtocolWidget(QWidget):
                     self.patient_id,
                     self.patient_right_foot_measurement,
                     self.patient_left_foot_measurement,
+                    self.patient_malleolus_measurement,
                     self.trial_type,
                     self.stimulator_setup,
                     self.vibrotactile_used
