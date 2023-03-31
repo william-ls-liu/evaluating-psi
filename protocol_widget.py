@@ -417,7 +417,7 @@ class ProtocolWidget(QWidget):
 
         # ComboBox for specifying % threshold
         self.threshold_percentage_entry = QComboBox(parent=self)
-        self.threshold_percentage_entry.addItems([str(i*5) for i in range(1, 21)])
+        self.threshold_percentage_entry.addItems([str(i) for i in range(1, 21)])
         self.threshold_percentage_entry.currentTextChanged.connect(self._set_APA_threshold)
         self.threshold_percentage = int(self.threshold_percentage_entry.currentText())  # Initialize a default value
 
