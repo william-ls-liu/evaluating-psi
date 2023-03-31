@@ -198,7 +198,7 @@ def directory_not_set_warning(parent: QWidget) -> None:
     message_box.exec()
 
 
-def generate_filename(patient_id, trial_type, stimulator_setup, vibrotactile) -> str:
+def generate_filename(patient_id, trial_type, stimulator_setup, medication, vibrotactile) -> str:
     """Create a standard filename based on info collected from the user.
 
     Parameters
@@ -209,6 +209,8 @@ def generate_filename(patient_id, trial_type, stimulator_setup, vibrotactile) ->
         the type of trial that was collected
     stimulator_setup : str
         the configuration of the stimulator(s) used for a trial
+    medication : str
+        a string, whehter patient is ON PD meds or not
     vibrotactile : bool
         a bool describing whether vibrotactile stimulation was used
     """
@@ -225,20 +227,32 @@ def generate_filename(patient_id, trial_type, stimulator_setup, vibrotactile) ->
     elif stimulator_setup == "Test":
         stimulator_setup = "test"
 
+    if medication == "On":
+        medication = "on"
+    else:
+        medication = False
+
     if vibrotactile:
         vibrotactile = "vibro"
     else:
         vibrotactile = False
 
-    if not stimulator_setup:
-        if not vibrotactile:
-            return f"{patient_id}_{trial}.csv"
+    if not stimulator_setup and not vibrotactile and not medication:
+        return f"{patient_id}_{trial}.csv"
+    elif not stimulator_setup and not vibrotactile:
+        return f"{patient_id}_{trial}_{medication}.csv"
+    elif not stimulator_setup and not medication:
         return f"{patient_id}_{trial}_{vibrotactile}.csv"
-
-    if not vibrotactile:
+    elif not vibrotactile and not medication:
         return f"{patient_id}_{trial}_{stimulator_setup}.csv"
-
-    return f"{patient_id}_{trial}_{stimulator_setup}_{vibrotactile}"
+    elif not stimulator_setup:
+        return f"{patient_id}_{trial}_{medication}_{vibrotactile}.csv"
+    elif not medication:
+        return f"{patient_id}_{trial}_{stimulator_setup}_{vibrotactile}.csv"
+    elif not vibrotactile:
+        return f"{patient_id}_{trial}_{stimulator_setup}_{medication}.csv"
+    else:
+        return f"{patient_id}_{trial}_{stimulator_setup}_{medication}_{vibrotactile}.csv"
 
 
 class ProtocolWidget(QWidget):
@@ -354,6 +368,12 @@ class ProtocolWidget(QWidget):
         malleolus_distance_label = QLabel("Malleolus distance (cm)", parent=self)
         malleolus_distance_label.setFont(consts.DEFAULT_FONT)
 
+        # Create a combobox to select medication status
+        self.medication_select_combobox = QComboBox(parent=self)
+        self.medication_select_combobox.addItems(["Off", "On"])
+        self.medication_select_combobox.currentTextChanged.connect(self._set_medication_status)
+        self._set_medication_status(self.medication_select_combobox.currentText())
+
         self.store_demographics_button = QPushButton(parent=self, text="Store Patient Info")
         self.store_demographics_button.setCheckable(True)
         self.store_demographics_button.setChecked(True)
@@ -369,7 +389,8 @@ class ProtocolWidget(QWidget):
         layout.addWidget(self.left_foot_size_entry, 4, 1)
         layout.addWidget(malleolus_distance_label, 5, 0)
         layout.addWidget(self.malleolus_distance_entry, 5, 1)
-        layout.addWidget(self.store_demographics_button, 6, 0, 1, 2)
+        layout.addWidget(self.medication_select_combobox, 6, 0, 1, 2)
+        layout.addWidget(self.store_demographics_button, 7, 0, 1, 2)
 
     def _create_baseline_layout(self, layout: QGridLayout) -> None:
         """Create buttons for baseline collection, add them to a layout.
@@ -576,6 +597,7 @@ class ProtocolWidget(QWidget):
         self.right_foot_size_entry.setEnabled(self.store_demographics_button.isChecked())
         self.left_foot_size_entry.setEnabled(self.store_demographics_button.isChecked())
         self.malleolus_distance_entry.setEnabled(self.store_demographics_button.isChecked())
+        self.medication_select_combobox.setEnabled(self.store_demographics_button.isChecked())
 
         # Update the state variable to keep track of whether demographics info is saved
         self.demographics_saved = not self.store_demographics_button.isChecked()
@@ -612,6 +634,7 @@ class ProtocolWidget(QWidget):
                 self.collect_baseline_button.setEnabled(True)
                 self.start_baseline_button.setEnabled(False)
                 self.start_trial_button.setEnabled(False)
+                self.store_demographics_button.setEnabled(False)
 
         else:
             demographics_warning(self)
@@ -660,6 +683,7 @@ class ProtocolWidget(QWidget):
             self.start_baseline_button.setEnabled(True)
             self.stop_baseline_button.setEnabled(False)
             self.collect_baseline_button.setEnabled(False)
+            self.store_demographics_button.setEnabled(True)
             self.enable_record_button_signal.emit()
 
     @Slot()
@@ -724,7 +748,7 @@ class ProtocolWidget(QWidget):
 
         if result == 1:
             self.baseline_trial_counter += 1
-            file_name = f"{self.patient_id}_baseline_off_{self.baseline_trial_counter}"
+            file_name = f"{self.patient_id}_baseline_{self.medication_status.lower()}_{self.baseline_trial_counter}"
             fname = QFileDialog.getSaveFileName(
                 parent=self,
                 dir=os.path.join(self.export_directory, file_name),
@@ -741,12 +765,14 @@ class ProtocolWidget(QWidget):
                     RightFootMeasurement=self.patient_right_foot_measurement,
                     LeftFootMeasurement=self.patient_left_foot_measurement,
                     MalleolusMeasurement=self.patient_malleolus_measurement,
+                    Medication=self.medication_status
                 )
                 file = open(fname[0], 'w+', newline='')
                 with file:
                     write = csv.writer(file)
                     write.writerows(to_csv)
-
+            else:
+                self.baseline_trial_counter -= 1
             # During a step there is usually a M/L force in the direction of the
             # swing leg followed by a M/L force in the direction of the stance
             # leg. To keep the code functional for a left or right step, look
@@ -834,7 +860,7 @@ class ProtocolWidget(QWidget):
         if result == 1:
 
             file_name = generate_filename(
-                self.patient_id, self.trial_type, self.stimulator_setup, self.vibrotactile_used
+                self.patient_id, self.trial_type, self.stimulator_setup, self.medication_status, self.vibrotactile_used
             )
 
             fname = QFileDialog.getSaveFileName(
@@ -851,6 +877,7 @@ class ProtocolWidget(QWidget):
                     self.patient_id,
                     self.incoming_data_storage,
                     self.quiet_stance_data,
+                    Medication=self.medication_status,
                     RightFootMeasurement=self.patient_right_foot_measurement,
                     LeftFootMeasurement=self.patient_left_foot_measurement,
                     MalleolusMeasurement=self.patient_malleolus_measurement,
@@ -1041,6 +1068,18 @@ class ProtocolWidget(QWidget):
         """
 
         self.trial_type = type
+
+    @Slot(str)
+    def _set_medication_status(self, status: str) -> None:
+        """Set whether patient is ON/OFF PD medication.
+
+        Parameters
+        ----------
+        status : str
+            a string denoting whether patient is ON PD meds
+        """
+
+        self.medication_status = status
 
     @Slot(str)
     def _set_vibrotactile(self, status: str) -> None:
