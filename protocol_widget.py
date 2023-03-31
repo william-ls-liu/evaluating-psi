@@ -198,7 +198,7 @@ def directory_not_set_warning(parent: QWidget) -> None:
     message_box.exec()
 
 
-def generate_filename(patient_id, trial_type, stimulator_setup, medication, vibrotactile) -> str:
+def generate_filename(patient_id, trial_type, stimulator_setup, medication, vibrotactile, trial_num) -> str:
     """Create a standard filename based on info collected from the user.
 
     Parameters
@@ -213,6 +213,8 @@ def generate_filename(patient_id, trial_type, stimulator_setup, medication, vibr
         a string, whehter patient is ON PD meds or not
     vibrotactile : bool
         a bool describing whether vibrotactile stimulation was used
+    trial_num : int
+        an int representing the trial number
     """
 
     if trial_type == "Step Trial":
@@ -238,21 +240,21 @@ def generate_filename(patient_id, trial_type, stimulator_setup, medication, vibr
         vibrotactile = False
 
     if not stimulator_setup and not vibrotactile and not medication:
-        return f"{patient_id}_{trial}.csv"
+        return f"{patient_id}_{trial}_{trial_num}.csv"
     elif not stimulator_setup and not vibrotactile:
-        return f"{patient_id}_{trial}_{medication}.csv"
+        return f"{patient_id}_{trial}_{medication}_{trial_num}.csv"
     elif not stimulator_setup and not medication:
-        return f"{patient_id}_{trial}_{vibrotactile}.csv"
+        return f"{patient_id}_{trial}_{vibrotactile}_{trial_num}.csv"
     elif not vibrotactile and not medication:
-        return f"{patient_id}_{trial}_{stimulator_setup}.csv"
+        return f"{patient_id}_{trial}_{stimulator_setup}_{trial_num}.csv"
     elif not stimulator_setup:
-        return f"{patient_id}_{trial}_{medication}_{vibrotactile}.csv"
+        return f"{patient_id}_{trial}_{medication}_{vibrotactile}_{trial_num}.csv"
     elif not medication:
-        return f"{patient_id}_{trial}_{stimulator_setup}_{vibrotactile}.csv"
+        return f"{patient_id}_{trial}_{stimulator_setup}_{vibrotactile}_{trial_num}.csv"
     elif not vibrotactile:
-        return f"{patient_id}_{trial}_{stimulator_setup}_{medication}.csv"
+        return f"{patient_id}_{trial}_{stimulator_setup}_{medication}_{trial_num}.csv"
     else:
-        return f"{patient_id}_{trial}_{stimulator_setup}_{medication}_{vibrotactile}.csv"
+        return f"{patient_id}_{trial}_{stimulator_setup}_{medication}_{vibrotactile}_{trial_num}.csv"
 
 
 class ProtocolWidget(QWidget):
@@ -858,11 +860,11 @@ class ProtocolWidget(QWidget):
         """Save or discard a step trial."""
 
         if result == 1:
-
+            self.trial_counter += 1
             file_name = generate_filename(
-                self.patient_id, self.trial_type, self.stimulator_setup, self.medication_status, self.vibrotactile_used
+                self.patient_id, self.trial_type, self.stimulator_setup,
+                self.medication_status, self.vibrotactile_used, self.trial_counter
             )
-
             fname = QFileDialog.getSaveFileName(
                 parent=self,
                 dir=os.path.join(self.export_directory, file_name),
@@ -888,15 +890,15 @@ class ProtocolWidget(QWidget):
                     APAThresholdPercentage=self.threshold_percentage,
                     Notes=self.collection_notes,
                 )
-
                 file = open(fname[0], 'w+', newline='')
                 with file:
                     write = csv.writer(file)
                     write.writerows(to_csv)
+            else:
+                self.trial_counter -= 1
 
-                self.trial_counter += 1
-                self._update_trial_counter_label()
-                del self.collection_notes
+            self._update_trial_counter_label()
+            del self.collection_notes
 
         self.incoming_data_storage.clear()
         self.quiet_stance_data.clear()
