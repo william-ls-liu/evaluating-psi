@@ -181,8 +181,8 @@ def demographics_warning(parent: QWidget) -> None:
     message_box = QMessageBox(parent=parent)
     message_box.setWindowTitle("Warning!")
     message_box.setText(
-        "Patient ID and Foot Measurement have not been saved.\n"
-        "Before proceeding you must enter a Patient ID and Foot Measurement."
+        "Patient ID and Foot Measurements have not been saved.\n"
+        "Before proceeding you must enter a Patient ID and Foot Measurements."
     )
     message_box.setIcon(QMessageBox.Warning)
     message_box.setStandardButtons(QMessageBox.Ok)
@@ -587,14 +587,7 @@ class ProtocolWidget(QWidget):
                 self.patient_left_foot_measurement == "" or
                 self.patient_malleolus_measurement == ""
             ):
-                message_box = QMessageBox(self)
-                message_box.setWindowTitle("Warning!")
-                message_box.setText(
-                    "You must enter values for Patient ID, Right Foot, Left Foot and Malleolus."
-                )
-                message_box.setIcon(QMessageBox.Warning)
-                message_box.setStandardButtons(QMessageBox.Ok)
-                message_box.exec()
+                demographics_warning(self)
                 self.store_demographics_button.setChecked(True)
             else:
                 self.store_demographics_button.setText("Edit Patient Info")
