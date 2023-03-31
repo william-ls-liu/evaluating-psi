@@ -517,6 +517,10 @@ class ProtocolWidget(QWidget):
         self.trial_counter_label.setFont(consts.DEFAULT_FONT)
         self._update_trial_counter_label()
 
+        # Create a button to reset the trial counter
+        self.reset_trial_counter = QPushButton(parent=self, text="Reset Trial Counter")
+        self.reset_trial_counter.clicked.connect(self._reset_trial_counter)
+
         # Add widgets to the layout
         layout.addWidget(self.trial_select_combobox, 0, 0, 1, 3)
         layout.addWidget(self.vibrotactile_combobox, 1, 0, 1, 3)
@@ -527,6 +531,7 @@ class ProtocolWidget(QWidget):
         layout.addWidget(self.start_trial_button, 4, 0, 1, 3)
         layout.addWidget(self.stop_trial_button, 5, 0, 1, 3)
         layout.addWidget(self.trial_counter_label, 6, 0, 1, 3)
+        layout.addWidget(self.reset_trial_counter, 7, 0, 1, 3)
 
     def _update_baseline_trial_counter_label(self) -> None:
         self.baseline_trial_counter_label.setText(
@@ -903,6 +908,23 @@ class ProtocolWidget(QWidget):
         self.incoming_data_storage.clear()
         self.quiet_stance_data.clear()
         self.number_of_stims_standing = 0
+
+    @Slot()
+    def _reset_trial_counter(self) -> None:
+        """"""
+
+        message_box = QMessageBox()
+        message_box.setWindowTitle("Reset Trial Counter?")
+        message_box.setIcon(QMessageBox.Warning)
+        message_box.setInformativeText("Are you sure you want to reset the trial counter?")
+        message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        message_box.setDefaultButton(QMessageBox.No)
+
+        result = message_box.exec()
+
+        if result == QMessageBox.Yes:
+            self.trial_counter = 0
+            self._update_trial_counter_label()
 
     @Slot(str)
     def _receive_collection_notes(self, notes: str) -> None:
