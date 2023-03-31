@@ -89,7 +89,8 @@ def create_csv_export(
         threshold: float,
         threshold_percent: int,
         patient_id: str,
-        patient_foot_measurement: str,
+        patient_right_foot_measurement: str,
+        patient_left_foot_measurement: str,
         trial_type: str,
         stimulator_setup: str,
         vibrotactile: bool
@@ -115,8 +116,10 @@ def create_csv_export(
         the percent used to calculate threshold
     patient_id : str
         patient identifier
-    patient_foot_measurement
-        patient's foot size
+    patient_right_foot_measurement : str
+        patient's right foot size, in centimeters
+    patient_left_foot_measurement : str
+        patient's left foot size, in centimeters
     trial_type : str
         a string that specifies the type of trial that was collected
     stimulator_setup : str
@@ -128,7 +131,8 @@ def create_csv_export(
     export = [
         ["Date/Time of Export:", datetime_of_export],
         ["Patient ID:", patient_id],
-        ["Foot Measurement:", patient_foot_measurement],
+        ["Right Foot Measurement (cm):", patient_right_foot_measurement],
+        ["Left Foot Measurement (cm):", patient_left_foot_measurement],
         ["Trial Type:", trial_type],
         ["APA Threshold:", threshold],
         ["Threshold Percentage:", threshold_percent],
@@ -296,7 +300,8 @@ class ProtocolWidget(QWidget):
 
         # Initiate variables to store patient demographics
         self.patient_id = None
-        self.patient_foot_measurement = None
+        self.patient_right_foot_measurement = None
+        self.patient_left_foot_measurement = None
         self.demographics_saved = False
 
         # Create the parent layout
@@ -350,10 +355,15 @@ class ProtocolWidget(QWidget):
         patient_id_label = QLabel("Patient ID", parent=self)
         patient_id_label.setFont(consts.DEFAULT_FONT)
 
-        self.foot_size_entry = QLineEdit(parent=self)
-        self.foot_size_entry.setPlaceholderText("Enter foot measurement here")
-        foot_size_label = QLabel("Foot Measurement", parent=self)
-        foot_size_label.setFont(consts.DEFAULT_FONT)
+        self.right_foot_size_entry = QLineEdit(parent=self)
+        self.right_foot_size_entry.setPlaceholderText("Enter right foot measurement here")
+        right_foot_size_label = QLabel("Right foot (cm)", parent=self)
+        right_foot_size_label.setFont(consts.DEFAULT_FONT)
+
+        self.left_foot_size_entry = QLineEdit(parent=self)
+        self.left_foot_size_entry.setPlaceholderText("Enter left foot measurement here")
+        left_foot_size_label = QLabel("Left foot (cm)", parent=self)
+        left_foot_size_label.setFont(consts.DEFAULT_FONT)
 
         self.store_demographics_button = QPushButton(parent=self, text="Store Patient Info")
         self.store_demographics_button.setCheckable(True)
@@ -364,9 +374,11 @@ class ProtocolWidget(QWidget):
         layout.addWidget(self.current_directory_label, 1, 0, 1, 2, Qt.AlignTop)
         layout.addWidget(patient_id_label, 2, 0)
         layout.addWidget(self.patient_id_entry, 2, 1)
-        layout.addWidget(foot_size_label, 3, 0)
-        layout.addWidget(self.foot_size_entry, 3, 1)
-        layout.addWidget(self.store_demographics_button, 4, 0, 1, 2)
+        layout.addWidget(right_foot_size_label, 3, 0)
+        layout.addWidget(self.right_foot_size_entry, 3, 1)
+        layout.addWidget(left_foot_size_label, 4, 0)
+        layout.addWidget(self.left_foot_size_entry, 4, 1)
+        layout.addWidget(self.store_demographics_button, 5, 0, 1, 2)
 
     def _create_baseline_layout(self, layout: QGridLayout) -> None:
         """Create buttons for baseline collection, add them to a layout.
@@ -550,28 +562,33 @@ class ProtocolWidget(QWidget):
 
         # Get entry from the text boxes, remove whitespace at beginning and end
         self.patient_id = self.patient_id_entry.text().strip()
-        self.patient_foot_measurement = self.foot_size_entry.text().strip()
+        self.patient_right_foot_measurement = self.right_foot_size_entry.text().strip()
+        self.patient_left_foot_measurement = self.left_foot_size_entry.text().strip()
 
         if check_state:
             self.store_demographics_button.setText("Store Patient Info")
         else:
-            if self.patient_id == "" or self.patient_foot_measurement == "":
+            if (
+                self.patient_id == "" or
+                self.patient_right_foot_measurement == "" or
+                self.patient_left_foot_measurement == ""
+            ):
                 message_box = QMessageBox(self)
                 message_box.setWindowTitle("Warning!")
                 message_box.setText(
-                    "You must enter a value for both the Patient ID and the Foot Measurement."
+                    "You must enter values for Patient ID, Right Foot, and Left Foot."
                 )
                 message_box.setIcon(QMessageBox.Warning)
                 message_box.setStandardButtons(QMessageBox.Ok)
                 message_box.exec()
                 self.store_demographics_button.setChecked(True)
-
             else:
                 self.store_demographics_button.setText("Edit Patient Info")
 
         # Disable/enable the text entrys as appropriate
         self.patient_id_entry.setEnabled(self.store_demographics_button.isChecked())
-        self.foot_size_entry.setEnabled(self.store_demographics_button.isChecked())
+        self.right_foot_size_entry.setEnabled(self.store_demographics_button.isChecked())
+        self.left_foot_size_entry.setEnabled(self.store_demographics_button.isChecked())
 
         # Update the state variable to keep track of whether demographics info is saved
         self.demographics_saved = not self.store_demographics_button.isChecked()
@@ -829,7 +846,8 @@ class ProtocolWidget(QWidget):
                     self.threshold,
                     self.threshold_percentage,
                     self.patient_id,
-                    self.patient_foot_measurement,
+                    self.patient_right_foot_measurement,
+                    self.patient_left_foot_measurement,
                     self.trial_type,
                     self.stimulator_setup,
                     self.vibrotactile_used
