@@ -443,7 +443,7 @@ class ProtocolWidget(QWidget):
 
         # ComboBox for specifying % threshold
         self.threshold_percentage_entry = QComboBox(parent=self)
-        self.threshold_percentage_entry.addItems([str(i) for i in range(1, 21)])
+        self.threshold_percentage_entry.addItems([str(i) for i in range(1, 51)])
         self.threshold_percentage_entry.currentTextChanged.connect(self._set_APA_threshold)
         self.threshold_percentage = int(self.threshold_percentage_entry.currentText())  # Initialize a default value
 
@@ -755,7 +755,10 @@ class ProtocolWidget(QWidget):
 
         if result == 1:
             self.baseline_trial_counter += 1
-            file_name = f"{self.patient_id}_baseline_{self.medication_status.lower()}_{self.baseline_trial_counter}"
+            if self.vibrotactile_used:
+                file_name = f"{self.patient_id}_baseline_vibro_{self.baseline_trial_counter}"
+            else:
+                file_name = f"{self.patient_id}_baseline_{self.medication_status.lower()}_{self.baseline_trial_counter}"
             fname = QFileDialog.getSaveFileName(
                 parent=self,
                 dir=os.path.join(self.export_directory, file_name),
