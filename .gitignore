@@ -177,6 +177,7 @@ data_viewer.py
 gui.py
 progress_widget.py
 sounds.py
+load_cpu.py
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
