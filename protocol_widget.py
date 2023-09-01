@@ -833,6 +833,9 @@ class ProtocolWidget(QWidget):
         if self.trial_type == "Step Trial":
             self.disconnect_signal.emit("step")
         elif self.trial_type == "Standing Trial":
+            if self.standing_timer.isActive():
+                self.standing_timer.stop()
+                print("Standing timer stopped prematurely", datetime.now())
             self.disconnect_signal.emit("standing")
         self.enable_record_button_signal.emit()
         self.start_trial_button.setEnabled(True)
@@ -1048,6 +1051,7 @@ class ProtocolWidget(QWidget):
         data : np.ndarray
             array of raw data read from the DAQ
         """
+
         if self.number_of_stims_standing == 10:
             self.incoming_data_storage.append(np.append(data, 0))
         elif len(self.incoming_data_storage) % 10_000 == 0:
@@ -1175,16 +1179,17 @@ class ProtocolWidget(QWidget):
         self.quiet_stance_data = self.incoming_data_storage.copy()
         self.incoming_data_storage.clear()
 
-        standing_timer = QTimer(parent=self)
-        standing_timer.setSingleShot(True)
-        standing_timer.setInterval(103_000)
-        standing_timer.setTimerType(Qt.PreciseTimer)
-        standing_timer.timeout.connect(self.stop_trial_button.click)
+        self.standing_timer = QTimer(parent=self)
+        self.standing_timer.setSingleShot(True)
+        self.standing_timer.setInterval(103_000)
+        self.standing_timer.setTimerType(Qt.PreciseTimer)
+        self.standing_timer.timeout.connect(self.stop_trial_button.click)
+        self.standing_timer.timeout.connect(lambda: print("standing timer over", datetime.now()))
 
         wait_timer = QTimer(parent=self)
         wait_timer.setSingleShot(True)
         wait_timer.setInterval(500)
         wait_timer.timeout.connect(lambda: self.connect_signal.emit("standing"))
         wait_timer.timeout.connect(lambda: self.stop_trial_button.setEnabled(True))
-        wait_timer.timeout.connect(standing_timer.start)
+        wait_timer.timeout.connect(self.standing_timer.start)
         wait_timer.start()
